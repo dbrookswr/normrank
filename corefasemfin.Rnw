@@ -1,0 +1,2041 @@
+\documentclass[man,floatsintext,hidelinks]{apa7}
+% \documentclass[doc,floatsintext,hidelinks]{apa7}
+%\documentclass[doc,floatsintext,hidelinks,mask]{apa7}
+%\documentclass{article}
+\usepackage{apacite}
+\usepackage{natbib}
+\bibliographystyle{apacite}
+\usepackage{enumitem}
+\usepackage[normalem]{ulem} 
+\usepackage{colortbl}
+\usepackage{url}
+\usepackage{comment}
+\usepackage{afterpage}
+\usepackage{makecell}
+\usepackage{amsmath}
+\usepackage{wrapfig}
+\usepackage{multirow}
+\usepackage{setspace}
+\usepackage{xcolor, soul}
+\sethlcolor{yellow}
+\usepackage[framemethod=tikz]{mdframed}
+\usepackage{tikz}
+\usepackage{tikzsymbols}
+\usetikzlibrary{shapes}
+\usetikzlibrary{decorations.pathreplacing}
+%\usepackage[hidelinks]{hyperref}
+%\usepackage{lipsum} #this creates a problem?!?!
+\usetikzlibrary{arrows,positioning,fit,arrows.meta}
+\usetikzlibrary{shapes}
+\usepackage{array}
+\usepackage{graphicx}
+\renewenvironment{knitrout}{\begin{singlespace}}{\end{singlespace}}
+\title{Normrank Correlations for Testing Associations\\ \vspace{.2cm} and for use in Latent Variable Models}
+
+\shorttitle{Normrank Correlations}
+\keywords{robust statistics; latent variable models; structural equation modelling; statistical power}
+\author{\phantom{d} \\Daniel B. Wright}
+
+\affiliation{\small{{Department of Educational Psychology, Leadership, and Higher Education}}, {University of Nevada, Las Vegas}}
+\abstract{Pearson's correlation is widely used to test for an association between two variables and also forms the basis of several multivariate statistical procedures including many latent variable models. Spearman's $\rho$ is a popular alternative. These procedures are compared with ranking the  data and then applying the inverse normal transformation, or for short the \emph{normrank} transformation. Using the normrank transformation was more powerful than Pearson's and Spearman's procedures when the distributions have less than normal kurtosis (platykurtic), when the distributions have greater than normal kurtosis (leptokurtic), and when the distribution is skewed. This is examined for testing if there is an association between two variables, identifying the number of factors in an exploratory factor analysis, identifying appropriate loadings in these analyses, and identifying relations among latent variables in structural equation models. \textsf{R} functions and their use are shown.}
+\begin{document}
+\maketitle
+
+Pearson's correlation is widely reported in much of the scientific literature and is the basis for many other statistical procedures. Others calculated correlations before Pearson (e.g., Bravais, Galton), but Pearson showed that the product moment correlation, which bears his name, has some valuable properties for bivariate normal distributions. \citet[p.~265]{Pearson1896}, using different notation, defined the correlation between $x_i$ and $y_i$ as:  
+\begin{equation} \label{eqn:cor}
+r_{xy} =        
+     \frac
+      {\sum (x_i - \overline{x})\;(y_i - \overline{y})}
+      {\sqrt{\sum (x_i - \overline{x})^2} \sqrt{\sum (y_i - \overline{y})^2} }
+\end{equation}
+\noindent where $\overline{x}$ and $\overline{y}$ are the sample means of two variables. It is widely used to examine the association between two variables and correlation matrices are used with factor analysis, structural equation modeling, \emph{etc}. Intervals for these estimates and the associated $p$-values are reported in most statistical software. The intervals and $p$-values make assumptions about the variables' population distribution (i.e., bivariate normal). 
+
+Soon after Pearson's paper, \citet{Spearman1904rho} devised a method for ``characteristics that can \emph{not} be measured quantitatively'' (p.~78). It has become known as Spearman's $\rho$. His rationale was as follows. If variables cannot be measured quantitatively, meaning is not lost ranking them. Spearman's approach involves ranking the data then applying eqn.~\ref{eqn:cor}, though in the days before computers other algorithms were available to make computations easier. It is often used when researchers do not make the bivariate normal assumption or do not want outliers and influential points to have as much impact as with Pearson's correlation. These are different rationale than Spearman's rationale of not losing meaning by ranking, but the procedure is less affected by extreme values than Pearsons's $r$. Spearman's $\rho$, as his version is called, is popular and provides more reliable estimates for distributions with outliers than Pearson's version \citep[e.g.,][]{deWinterEA2016,EdgellNoon1984,VenturaEA2022}. Spearman's procedure involves ranking both variables, assigning the mid-rank to ties, and then using the equation for Pearson's correlation. Alternative formula for the standard error can be used for constructing intervals and $p$-values \citep[see][]{BonettWright2000,Ruscio2008}. 
+
+
+Numerical transformations can be used to map the bivariate data used in a correlation such that each of the new variables is uniformly distributed \citep[e.g.,][]{Nelson2006}. Ranking is a type of transformation. When there are no ties it results in a discrete uniform distribution. These ranks can be transformed using the inverse of the normal distribution to make their distribution more like this distribution. This is often called the rank based inverse normal transformation \citep{BeasleyEA2009}. For short, here it will be called the \emph{normrank} transformation. \citet{vdw1} compared \emph{Student's} $t$ test and the Mann-Whitney Wilcoxon (MWW) test for testing the difference between the center of two samples using this approach. The transformation he used was: 
+
+\begin{equation} \label{eqn:prank}
+\mathit{new} \; x_i = \Phi^{-1} \frac{rank(x_i)}{n+1}
+\end{equation}
+
+\noindent where $\Phi^{-1}$ is the inverse of the standard normal function. Consider the data in Table~\ref{tab:spread}. The transformation increases the relative spacing for the first few values but decreases the spacing for the final few values. This is because the first few values are closer to each other than predicted for a tail of the normal distribution but those on the right side of the table are further spread out.
+
+<<echo=FALSE>>=
+raw <- c(-1,-.9, -.8, -.6, -.4, -.2, 0, .5, 1, 2)
+normrank <- function(x) qnorm(rank(x)/(length(x)+1))
+pr <- sprintf("%2.2f",normrank(raw))
+rr <- sprintf("%2.2f",raw)
+@
+
+\begin{table}[h!] \caption{Example values before and after transforming.} \label{tab:spread}
+\begin{center}
+\begin{tabular}{lcccccccccc} 
+& \multicolumn{10}{c}{Ten values} \\ \hline
+Raw data & \Sexpr{rr[1]} & \Sexpr{rr[2]} & \Sexpr{rr[3]} & \Sexpr{rr[4]} & 
+  \Sexpr{rr[5]} & \Sexpr{rr[6]} & \Sexpr{rr[7]} & \Sexpr{rr[8]} & 
+  \Sexpr{rr[9]} & \Sexpr{rr[10]} \\ 
+After eqn.~\ref{eqn:prank} & \Sexpr{pr[1]} & \Sexpr{pr[2]} & \Sexpr{pr[3]} & 
+  \Sexpr{pr[4]} & \Sexpr{pr[5]} & \Sexpr{pr[6]} & \Sexpr{pr[7]} & \Sexpr{pr[8]} & 
+  \Sexpr{pr[9]} & \Sexpr{pr[10]} \\ \hline \multicolumn{11}{c}{\phantom{d}} \\
+%\end{tabular}
+%\end{center}
+& \multicolumn{10}{c}{
+%\begin{center}
+\begin{tikzpicture}[scale=.7]
+\draw (-6,1)--(10,1);
+\draw (-6,0)--(10,0);
+\filldraw[black] (-4,1) circle (1pt);
+\filldraw[black] (-3.6,1) circle (1pt);
+\filldraw[black] (-3.2,1) circle (1pt);
+\filldraw[black] (-2.4,1) circle (1pt);
+\filldraw[black] (-1.6,1) circle (1pt);
+\filldraw[black] (-.8,1) circle (1pt);
+\filldraw[black] (0,1) circle (1pt);
+\filldraw[black] (2,1) circle (1pt);
+\filldraw[black] (4,1) circle (1pt);
+\filldraw[black] (8,1) circle (1pt);
+\filldraw[black] (-5.36,0) circle (1pt);
+\filldraw[black] (-3.64,0) circle (1pt);
+\filldraw[black] (-2.4,0) circle (1pt);
+\filldraw[black] (-1.4,0) circle (1pt);
+\filldraw[black] (-.44,0) circle (1pt);
+\filldraw[black] (.44,0) circle (1pt);
+\filldraw[black] (1.4,0) circle (1pt);
+\filldraw[black] (2.40,0) circle (1pt);
+\filldraw[black] (3.64,0) circle (1pt);
+\filldraw[black] (5.36,0) circle (1pt);
+\draw[->, shorten >= .07cm] (-4,1) -- (-5.36,0);
+\draw[->, shorten >= .07cm] (-3.6,1) -- (-3.64,0);
+\draw[->, shorten >= .07cm] (-3.2,1) -- (-2.40,0);
+\draw[->, shorten >= .07cm] (-2.4,1) -- (-1.4,0);
+\draw[->, shorten >= .07cm] (-1.6,1) -- (-.44,0);
+\draw[->, shorten >= .07cm] (-.8,1) -- (.44,0);
+\draw[->, shorten >= .07cm] (0,1) -- (1.4,0);
+\draw[->, shorten >= .07cm] (2,1) -- (2.40,0);
+\draw[->, shorten >= .07cm] (4,1) -- (3.64,0);
+\draw[->, shorten >= .07cm] (8,1) -- (5.36,0);
+\node at (1,1) [above] {Raw data};
+\node at (1,0) [below] {Transformed data};
+
+\end{tikzpicture}
+} \\ \multicolumn{11}{c}{\phantom{d}} \\ \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+
+The transformed variables were then entered into the $t$-test formula. van der Waerden called this the $X$-test, but it is now usually called the van der Waerden or vdw test.  The test is implemented in the \textsf{R} package \textbf{PMCMRplus} \citep{PMCMRplus} and has been extended to compare multiple means as an alternative to the traditional oneway ANOVA. \citet{BeasleyEA2009} performed more extensive research comparing this transformation in the $t$ and $F$ tests contexts.
+
+The \texttt{blom} (named for Blom who suggested $\delta = 3/8$ in eqn.~\ref{eqn:rankdelta}) function from \textbf{rcompanion} \citep{rcompanion} implements a more general form of this: 
+
+\begin{equation} \label{eqn:rankdelta}
+\mathit{new\;X_i} = \Phi^{-1} \frac{\mathit{rank}(x) - \delta}{n - 2 \, \delta + 1} 
+\end{equation}
+
+\noindent When $\delta = 0$ this is the same as eqn.~\ref{eqn:prank}, but other values have been proposed . The norm is to have $\delta \in [-1,+1)$, where $[-1,+1)$ is the half-open interval as the upper limit would produce values of $-\infty$ and $+\infty$ for the ranks of 1 and $n$, respectively (and $\delta > 1$ produces percentiles outside of $[0,1]$ for these values where the inverse normal function is undefined). A simple \textsf{R} function for this is:    
+
+<<>>=
+normrank <- function(x,delta)
+  qnorm((rank(x) - delta)/(length(x) - 2 * delta + 1))
+@
+
+\noindent Similar procedures are available in \textsf{SAS}, \textsf{SPSS}, \emph{etc}. 
+
+<<loadpacks,echo=FALSE,warning=FALSE,message=FALSE>>=
+opts_chunk$set(cache.path =  "C:\\Users\\wrighd12\\Documents\\normrank\\cache")
+# install these if needed
+library("e1071") # for kurtosis
+library("Hmisc") # for binconf
+library("L1pack") # for Laplace
+library(triangle) # for triangle
+library(xtable) # for xtable
+library(psych) # for Fisher to z and back
+library(Stat2Data) # for Cereal
+library(MVN) # for mvn
+library(EFA.dimensions) # for DIMTESTS
+library(lavaan) # for sem
+@
+
+The first simulation in this paper explores different values of $\delta$ to see which $\delta$ values, in different circumstances, produce variables that are distributed most similarly to the normal distribution. In subsequent simulations the normranked data are created using this $\delta$. The primary purpose of this paper is to show how well this transformation works when applied to two variables, as opposed to a single response variables as examined in \citet{vdw1} and \citet{BeasleyEA2009}. 
+
+Two issues are important to raise. While this transformation addresses univariate normality, it does not address the assumption of bivariate normality because both variables being normally distributed is a necessary but not a sufficient condition for bivariate normality (and similarly for multivariate normality). Second, information is lost when ranking the data. This may make it more difficult to interpret the meaning of the resulting correlation as an effect size than Pearson's version. This concern exists also with Spearman's correlation and any rank transformed procedure.
+
+\section{Simulation 1: Which values of $\delta$ to use?}
+The \texttt{blom} function in \textbf{rcompanion} \citep{rcompanion} calculates eqn.~\ref{eqn:rankdelta} with $\delta$ values for 0 (Van der Waerden's), $\pi/8 \approx \Sexpr{sprintf("%0.3f",pi/8)}$ (Elving's), $1/3 \approx 0.333$ (Tukey's), $3/8 = \Sexpr{sprintf("%0.3f",3/8)}$ (Blom's), and $1/2 = .5$ (the rankit method). Here the values in $\delta \in [0,1)$ are examined. Values of $\delta$ from 0 to .99 in steps of .01, from .99001 to .99999 in steps of .00001, and .999999999, and used. Values very near one are used because $\delta = 1$ produces $\infty$ for the rank $n$ value so there is interest in the transformation's behavior near this threshold. The code for this and the other simulations are in the Appendix 1.
+
+
+<<simudelta,echo=FALSE,cache=TRUE>>=
+normrank <- function(x,delta)
+  qnorm((rank(x) - delta)/(length(x) - 2 * delta + 1))
+set.seed(5858)
+reps <- k <- 1000
+seqvals <- c(seq(0,.99,.01),seq(.99001,.99999,.00001),.999999999)
+vals <- matrix(nrow=5*reps*length(seqvals),ncol=5) # trialno, n, discreteness, seqvals, shap
+count <- 0
+for (ww in 1:5){
+ for (i in 1:reps){
+  for (j in 1:length(seqvals)) {
+      count <- count + 1
+      n <- 100
+      x <- runif(n,0,10)
+      if(ww == 2) x <- round(2*x+.5)
+      if(ww == 3) x <- round(x +.5)
+      if(ww == 4) x <- round(x/2 +.5)
+      if(ww == 5) x <- round(3*x/10 +.5)
+      newx <- normrank(x,delta=seqvals[j])
+      w <- shapiro.test(newx)$statistic
+      vals[count,] <- c(count,n,ww,seqvals[j],w)  
+}}}
+@
+
+<<simudeltan50,echo=FALSE,cache=TRUE>>=
+normrank <- function(x,delta)
+  qnorm((rank(x) - delta)/(length(x) - 2 * delta + 1))
+set.seed(5859)
+reps <- k <- 1000
+vals2 <- matrix(nrow=5*k*length(seqvals),ncol=5) # trialno, n, discreteness, seqvals, shap
+count <- 0
+for (ww in 1:5){
+ for (i in 1:reps){
+  for (j in 1:length(seqvals)) {
+      count <- count + 1
+      n <- 50
+      x <- runif(n,0,10)
+      if(ww == 2) x <- round(2*x+.5)
+      if(ww == 3) x <- round(x +.5)
+      if(ww == 4) x <- round(x/2 +.5)
+      if(ww == 5) x <- round(3*x/10 +.5)
+      newx <- normrank(x,delta=seqvals[j])
+      w <- shapiro.test(newx)$statistic
+      vals2[count,] <- c(count,n,ww,seqvals[j],w)  
+} } }
+@
+
+
+<<simudeltan500,echo=FALSE,cache=TRUE>>=
+normrank <- function(x,delta)
+  qnorm((rank(x) - delta)/(length(x) - 2 * delta + 1))
+set.seed(5860)
+reps <- k <- 1000
+vals3 <- matrix(nrow=5*k*length(seqvals),ncol=5) # trialno, n, discreteness, seqvals, shap
+count <- 0
+for (ww in 1:5){
+ for (i in 1:k){
+  for (j in 1:length(seqvals)) {
+      count <- count + 1
+      n <- 500
+      x <- runif(n,0,10)
+      if(ww == 2) x <- round(2*x+.5)
+      if(ww == 3) x <- round(x +.5)
+      if(ww == 4) x <- round(x/2 +.5)
+      if(ww == 5) x <- round(3*x/10 +.5)
+      newx <- normrank(x,delta=seqvals[j])
+      w <- shapiro.test(newx)$statistic
+      vals3[count,] <- c(count,n,ww,seqvals[j],w)  
+} } }
+@
+
+
+<<simu1,eval=TRUE,fig.cap="Finding \\textbf{W} values with continuous and discrete scales for different $\\delta$ values, for three sample sizes. The black line is the continuous data, the red line is for the 20-point scale, the green line for the 10-point scale, the darker blue line for the 5-point scale, and the light blue line for the 3-point scale.",fig.lp="fig:simu1",fig.align="center",fig.height=2.7,out.height="2.7in",fig.width=6,out.width="6in",echo=FALSE>>=
+par(mfrow=c(1,3))
+par(mar=c(4,5,3,0))
+samps <- sample(1:nrow(vals2),500)
+plot(vals2[samps,4],vals2[samps,5],type="p",pch=".",ylab="W",xlab=expression(delta))
+mtext("n = 50",3,at=0,line=.5,cex=.9)
+mx <- tapply(vals2[,5],list(vals2[,3],vals2[,4]),mean)
+lines(seqvals,mx[1,],col=1,lwd=2)
+lines(seqvals,mx[2,],col=2,lwd=2)
+lines(seqvals,mx[3,],col=3,lwd=2)
+lines(seqvals,mx[4,],col=4,lwd=2)
+lines(seqvals,mx[5,],col=5,lwd=2)
+#@
+
+#<<n100,eval=TRUE>>=
+samps <- sample(1:nrow(vals),500)
+plot(vals[samps,4],vals[samps,5],type="p",pch=".",yaxt='n',ylab="",xlab=expression(delta))
+mtext("n = 100",3,at=0,line=.3,cex=.9)
+mx <- tapply(vals[,5],list(vals[,3],vals[,4]),mean)
+lines(seqvals,mx[1,],col=1,lwd=2)
+lines(seqvals,mx[2,],col=2,lwd=2)
+lines(seqvals,mx[3,],col=3,lwd=2)
+lines(seqvals,mx[4,],col=4,lwd=2)
+lines(seqvals,mx[5,],col=5,lwd=2)
+#@
+
+#<<n500,eval=TRUE>>=
+samps <- sample(1:nrow(vals3),500)
+plot(vals3[samps,4],vals3[samps,5],type="p",pch=".",yaxt='n',ylab=0,xlab=expression(delta))
+mtext("n = 500",3,at=0,line=.4,cex=.9)
+mx <- tapply(vals3[,5],list(vals3[,3],vals3[,4]),mean)
+lines(seqvals,mx[1,],col=1,lwd=2)
+lines(seqvals,mx[2,],col=2,lwd=2)
+lines(seqvals,mx[3,],col=3,lwd=2)
+lines(seqvals,mx[4,],col=4,lwd=2)
+lines(seqvals,mx[5,],col=5,lwd=2)
+@
+
+
+<<statsforsim1,eval=TRUE,echo=FALSE,cache=TRUE>>=
+statsforsim1 <- matrix(nrow=5*3,ncol=6)
+statsforsim1[1:15,1] <- rep(c(50,100,500),each=5)
+statsforsim1[1:15,2] <- rep(c("Continuous","20pt","10pt","5pt","3pt"),3)
+statsforsim1[1,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals2[vals2[,3]==1,5],vals2[vals2[,3]==1,4],mean))])
+statsforsim1[2,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals2[vals2[,3]==2,5],vals2[vals2[,3]==2,4],mean))])
+statsforsim1[3,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals2[vals2[,3]==3,5],vals2[vals2[,3]==3,4],mean))])
+statsforsim1[4,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals2[vals2[,3]==4,5],vals2[vals2[,3]==4,4],mean))])
+statsforsim1[5,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals2[vals2[,3]==5,5],vals2[vals2[,3]==5,4],mean))])
+
+statsforsim1[1,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals2[vals2[,3]==1,5],vals2[vals2[,3]==1,4],mean))])
+statsforsim1[2,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals2[vals2[,3]==2,5],vals2[vals2[,3]==2,4],mean))])
+statsforsim1[3,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals2[vals2[,3]==3,5],vals2[vals2[,3]==3,4],mean))])
+statsforsim1[4,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals2[vals2[,3]==4,5],vals2[vals2[,3]==4,4],mean))])
+statsforsim1[5,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals2[vals2[,3]==5,5],vals2[vals2[,3]==5,4],mean))])
+
+statsforsim1[1,5] <- sprintf("%0.3f",max(tapply(vals2[vals2[,3]==1,5],vals2[vals2[,3]==1,4],mean)))
+statsforsim1[2,5] <- sprintf("%0.3f",max(tapply(vals2[vals2[,3]==2,5],vals2[vals2[,3]==2,4],mean)))
+statsforsim1[3,5] <- sprintf("%0.3f",max(tapply(vals2[vals2[,3]==3,5],vals2[vals2[,3]==3,4],mean)))
+statsforsim1[4,5] <- sprintf("%0.3f",max(tapply(vals2[vals2[,3]==4,5],vals2[vals2[,3]==4,4],mean)))
+statsforsim1[5,5] <- sprintf("%0.3f",max(tapply(vals2[vals2[,3]==5,5],vals2[vals2[,3]==5,4],mean)))
+
+statsforsim1[1,6] <- sprintf("%0.3f",min(tapply(vals2[vals2[,3]==1,5],vals2[vals2[,3]==1,4],mean)))
+statsforsim1[2,6] <- sprintf("%0.3f",min(tapply(vals2[vals2[,3]==2,5],vals2[vals2[,3]==2,4],mean)))
+statsforsim1[3,6] <- sprintf("%0.3f",min(tapply(vals2[vals2[,3]==3,5],vals2[vals2[,3]==3,4],mean)))
+statsforsim1[4,6] <- sprintf("%0.3f",min(tapply(vals2[vals2[,3]==3,5],vals2[vals2[,3]==3,4],mean)))
+statsforsim1[5,6] <- sprintf("%0.3f",min(tapply(vals2[vals2[,3]==3,5],vals2[vals2[,3]==3,4],mean)))
+
+statsforsim1[6,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals[vals[,3]==1,5],vals[vals[,3]==1,4],mean))])
+statsforsim1[7,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals[vals[,3]==2,5],vals[vals[,3]==2,4],mean))])
+statsforsim1[8,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals[vals[,3]==3,5],vals[vals[,3]==3,4],mean))])
+statsforsim1[9,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals[vals[,3]==4,5],vals[vals[,3]==4,4],mean))])
+statsforsim1[10,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals[vals[,3]==5,5],vals[vals[,3]==5,4],mean))])
+
+statsforsim1[6,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals[vals[,3]==1,5],vals[vals[,3]==1,4],mean))])
+statsforsim1[7,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals[vals[,3]==2,5],vals[vals[,3]==2,4],mean))])
+statsforsim1[8,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals[vals[,3]==3,5],vals[vals[,3]==3,4],mean))])
+statsforsim1[9,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals[vals[,3]==4,5],vals[vals[,3]==4,4],mean))])
+statsforsim1[10,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals[vals[,3]==5,5],vals[vals[,3]==5,4],mean))])
+
+statsforsim1[6,5] <- sprintf("%0.3f",max(tapply(vals[vals[,3]==1,5],vals[vals[,3]==1,4],mean)))
+statsforsim1[7,5] <- sprintf("%0.3f",max(tapply(vals[vals[,3]==2,5],vals[vals[,3]==2,4],mean)))
+statsforsim1[8,5] <- sprintf("%0.3f",max(tapply(vals[vals[,3]==3,5],vals[vals[,3]==3,4],mean)))
+statsforsim1[9,5] <- sprintf("%0.3f",max(tapply(vals[vals[,3]==4,5],vals[vals[,3]==4,4],mean)))
+statsforsim1[10,5] <- sprintf("%0.3f",max(tapply(vals[vals[,3]==5,5],vals[vals[,3]==5,4],mean)))
+
+statsforsim1[6,6] <- sprintf("%0.3f",min(tapply(vals[vals[,3]==1,5],vals[vals[,3]==1,4],mean)))
+statsforsim1[7,6] <- sprintf("%0.3f",min(tapply(vals[vals[,3]==2,5],vals[vals[,3]==2,4],mean)))
+statsforsim1[8,6] <- sprintf("%0.3f",min(tapply(vals[vals[,3]==3,5],vals[vals[,3]==3,4],mean)))
+statsforsim1[9,6] <- sprintf("%0.3f",min(tapply(vals[vals[,3]==3,5],vals[vals[,3]==3,4],mean)))
+statsforsim1[10,6] <- sprintf("%0.3f",min(tapply(vals[vals[,3]==3,5],vals[vals[,3]==3,4],mean)))
+
+statsforsim1[11,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals3[vals3[,3]==1,5],vals3[vals3[,3]==1,4],mean))])
+statsforsim1[12,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals3[vals3[,3]==2,5],vals3[vals3[,3]==2,4],mean))])
+statsforsim1[13,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals3[vals3[,3]==3,5],vals3[vals3[,3]==3,4],mean))])
+statsforsim1[14,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals3[vals3[,3]==4,5],vals3[vals3[,3]==4,4],mean))])
+statsforsim1[15,3] <- sprintf("%0.3f",seqvals[which.max(tapply(vals3[vals3[,3]==5,5],vals3[vals3[,3]==5,4],mean))])
+
+statsforsim1[11,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals3[vals3[,3]==1,5],vals3[vals3[,3]==1,4],mean))])
+statsforsim1[12,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals3[vals3[,3]==2,5],vals3[vals3[,3]==2,4],mean))])
+statsforsim1[13,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals3[vals3[,3]==3,5],vals3[vals3[,3]==3,4],mean))])
+statsforsim1[14,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals3[vals3[,3]==4,5],vals3[vals3[,3]==4,4],mean))])
+statsforsim1[15,4] <- sprintf("%0.3f",seqvals[which.min(tapply(vals3[vals3[,3]==5,5],vals3[vals3[,3]==5,4],mean))])
+
+statsforsim1[11,5] <- sprintf("%0.3f",max(tapply(vals3[vals3[,3]==1,5],vals3[vals3[,3]==1,4],mean)))
+statsforsim1[12,5] <- sprintf("%0.3f",max(tapply(vals3[vals3[,3]==2,5],vals3[vals3[,3]==2,4],mean)))
+statsforsim1[13,5] <- sprintf("%0.3f",max(tapply(vals3[vals3[,3]==3,5],vals3[vals3[,3]==3,4],mean)))
+statsforsim1[14,5] <- sprintf("%0.3f",max(tapply(vals3[vals3[,3]==4,5],vals3[vals3[,3]==4,4],mean)))
+statsforsim1[15,5] <- sprintf("%0.3f",max(tapply(vals3[vals3[,3]==5,5],vals3[vals3[,3]==5,4],mean)))
+
+statsforsim1[11,6] <- sprintf("%0.3f",min(tapply(vals3[vals3[,3]==1,5],vals3[vals3[,3]==1,4],mean)))
+statsforsim1[12,6] <- sprintf("%0.3f",min(tapply(vals3[vals3[,3]==2,5],vals3[vals3[,3]==2,4],mean)))
+statsforsim1[13,6] <- sprintf("%0.3f",min(tapply(vals3[vals3[,3]==3,5],vals3[vals3[,3]==3,4],mean)))
+statsforsim1[14,6] <- sprintf("%0.3f",min(tapply(vals3[vals3[,3]==3,5],vals3[vals3[,3]==3,4],mean)))
+statsforsim1[15,6] <- sprintf("%0.3f",min(tapply(vals3[vals3[,3]==3,5],vals3[vals3[,3]==3,4],mean)))
+@
+
+<<tab:sim1res,results='asis',echo=FALSE>>=
+colnames(statsforsim1) <- c("$n$","Discrete",
+              "$\\delta_\\mathit{max}$",
+              "$\\delta_\\mathit{min}$",
+              "$\\emph{\\textbf{W}}_\\mathit{max}$","$\\emph{\\textbf{W}}_\\mathit{min}$")
+statsprint <- statsforsim1[,c(1,2,6,4,5,3)]
+print(xtable(statsprint,
+        caption="Minima and Maxima \\textbf{W} values and the corresponding $\\delta$s from the first simulation.",
+        label="tab:ressimu1",digits=c(0,0,0,2,1,3,3)),
+  sanitize.colnames.function=identity,include.rownames=FALSE)
+@
+
+Five levels of discreteness in the data are examined. The first are data drawn from a uniform distribution from (0,10), though any continuous distribution of size $n$ will produce the same transformed values. The next level uses integers from 1 to 20, created by doubling the first variable, adding .5, and rounding. Analogous approaches were used to create ten point, five point, and three point integer scales, similar to those often used in surveys and personality research. This approach will produce roughly equal numbers of values in each bin. Sample sizes of $n=50$, $n=100$, and $n=500$ were used. Thus, there are $5 \times 3 = 15$ conditions. The \emph{\textbf{W}} from the Shapiro-Wilk (\citeyear{ShapiroWilk1965}) test, as implemented in \texttt{shapiro.test} in \textsf{R} using Royston's algorithm (\citeyear{Royston1995}), is used as a measure to compare distance from normality. \textbf{\emph{W}} is the square of a Pearson correlation so cannot exceed one.
+
+The values are stored, plotted in Figure~1, and the maximum and minimum \textbf{\emph{W}} values, along with their $\delta$ values shown in Table~\ref{tab:ressimu1}. Note that for the case of continuous data, individual \textbf{\emph{W}} values are not shown because each replication produces the same transformed data and therefore the same \textbf{\emph{W}}. The results show:
+\begin{enumerate}[noitemsep]
+\item Little effect in the changes in sample size between $n = 50$, $n = 100$, and $n = 500$,
+\item The more continuous a variable is, the more closely it can approximate the normal distribution, which is itself continuous,
+\item There appears very little differences among the \emph{\textbf{W}}s for the $\delta$s $\in (0,1]$ for all the discrete variables,
+\item There is an effect of $\delta$ for the continuous variable with the \emph{\textbf{W}} reaching a maximum around .7 (with a maximum \emph{\textbf{W}} rounding to 1.000) and then dropping off when $\delta$ approaches 1. The dropping off does not happen for the discrete distributions because several values have the extreme bins and therefore their mid-rank is well above 1 or below $n$. If samples drawn from populations with fewer values that would be in the extreme bins, they would drop off too as sometimes only one value would be in the extreme bins, and therefore would have a rank of 1 or $n$, and a transformed value of it being infinite.
+\item The $\delta$ that produces the highest \emph{\textbf{W}} with discrete values tend to be higher than .7, particularly as the sample size increases.
+\end{enumerate}
+\noindent Here $\delta = .7$ will be used, though as is clear from the Figure, except when $\delta \rightarrow 1$ the size of this does not make a large difference. One thousand replications for each $\delta$ for each condition were used.
+
+
+\afterpage{\clearpage}
+
+\section{How are data typically distributed?}
+ Simulation is used in this paper to explore the value of the normrank correlation measure. Simulations are done to examine testing for an association, exploratory factor analysis, and structural equation modeling. A selection of the possible data creation scenarios are reported. The aim is to show a selection of uses of this normrank procedure to illustrate its potential, rather than to provide an exhaustive set of possible data creation scenarios. 
+
+Before discussing the main simulations reported in this paper it is necessary to examine what types of distributions are typical in education and allied disciplines. The distribution of variables used in correlations varies by discipline and by many other contextual details. The interest here is with kurtosis \citep[for discussion of this statistic, see][]{DeCarlo1997,WrightHerrington2011} because of its effect on power \citep{Wilcox2017}. There are several types of kurtosis based on the fourth moment and more robust alternatives \citep[e.g.,][]{Moors1988}. These are reviewed by \citet{JoanesGill1998}. Type 3 kurtosis is the default of the function \texttt{kurtosis} found in the \textbf{e1071} package \citep{e1071} and is reported here. 
+
+\citet{Micceri1989} requested data from several education sources, test publishers, and authors of psychology and education journal articles. He analyzed 440 separate distributions with respect to kurtosis. He classified their kurtosis as: similar to the uniform distribution (3.2\% of his sample), less than the normal distribution (14.8\%), similar to the normal distribution (15.8\%), similar to a moderate contaminated normal distribution (17.7\%), similar to an extreme contaminated normal distribution (32.5\%), and similar to a double exponential distribution (16.6\%). He defined a moderate contaminated distribution as 95\% drawn from a normal distribution with $\sigma = 1$ and 5\% drawn from a normal distribution with $\sigma = 2$. Extreme contaminated normal was defined as 85\% drawn from a normal distribution with $\sigma = 1$ and 15\% drawn from a normal distribution with $\sigma = 3$. Thus, about half of the distributions he examined had kurtosis at least that of what he called the extreme contaminated normal distribution. He found approximately 18\% to have kurtosis less than normal.
+
+Paraphrasing Poincar\'e, everybody believes the normal distribution assumption is justified: the mathematicians because they think the scientists say all their data are normally distributed; the scientists because they think the mathematicians say it is justified because of the central limit theorem. \citet{Micceri1989} titled his paper ``The unicorn, the normal curve, and other improbably creatures'' to stress that real data are seldom normally distributed. Thus, scientists do not say that all their data are usually normally distributed. \citet{Tukey1960} showed that non-normally distributed data do affect statistical results, countering the idea that the central limit theory makes this assumption justified in all circumstances. Tukey's advice was to assume that ``all assumptions are wrong'' \citep[p.~72]{Tukey1986}, but then to explore how problematic it is to make them and what alternatives exist. One of the main goals of this paper is to examine the costs of assuming data are normally distributed and discuss an alternative.
+
+
+<<kurtcheck,cache=TRUE,echo=FALSE>>=
+kurtvals <- matrix(ncol=3,nrow=2)
+unif <- runif(10000000,-5,5)
+kurtvals[1,1] <- e1071::kurtosis(unif)
+
+norm <- rnorm(10000000)
+kurtvals[1,2] <- 0 #kurtosis(norm)
+
+mixn <- c(rnorm(8500000),rnorm(1500000,sd=3))
+kurtvals[1,3] <- e1071::kurtosis(mixn)
+@
+
+Four distributions are considered here to illustrate how the three correlations perform: the uniform distribution, the normal distribution, a contaminated normal distribution with 15\% with $\sigma = 3$, and the $\chi^2$ with $\mathit{df}=1$, which is equivalent to the square of a normal distribution. The normal and contaminated normal distributions are shown in Figure~\ref{fig:showdists}. They can appear very similar in histograms, but the tails of the contaminated normal distribution are larger (right panel). Tukey showed that this can have a large impact on the power of the tests as the standard deviations can become much larger. The kurtosis for these four distributions are: uniform equals 1.80, normal equals 0, $\chi_1^2$ equals 12, and the contaminated normal used equals approximately \Sexpr{sprintf("%0.2f",kurtvals[1,3])}. The $\chi_1^2$ distribution has skewness of $\sqrt{8} \approx \Sexpr{sprintf("%0.2f",sqrt(8))}$. The others are symmetric. An example of how to perform a normrank correlation is in the first section of Appendix 2.
+
+
+\begin{figure}[ht!] 
+\caption{The normal distribution ($\mu = 0, \sigma = 1$) and a contaminated normal distribution that includes 15\% with $\sigma = 3$. The right panel focuses on the tails with $x > 2$. This makes the heavier tail of the contaminated distribution clearer.} \label{fig:showdists}
+<<twonormals,fig.align="center",fig.height=3*1.2,out.height="3in",fig.width=5.5*1.2,out.width="5.5in",warning=FALSE,message=FALSE,echo=FALSE>>=
+par(mfrow=c(1,2))
+par(mar=c(4,1,4,1))
+x <- seq(-6,6,.001)
+m1 <- .85*dnorm(x) + .15*dnorm(x,sd=3)
+m2 <- dnorm(x)
+plot(x,m1,pch=".",col="white",main="",xlab="x values",font.main=1,
+     ylab="",bty='n',yaxt="n",ylim=range(m2))
+abline(h=0)
+lines(x,m1)
+lines(x,m2)
+text(-1.7,.38,"Normal",pos=2)
+text(1.3,.34,"Contaminated\nNormal",pos=4)
+lines(c(1.55,m1[which.min(abs(x-.35))])-.05,c(.35,.35))
+lines(c(-1.7,-1*m2[which.min(abs(x-.38))]),c(.38,.38))
+
+plot(x,m1,pch=".",main="",col="white",xlab="x values",font.main=1,
+     ylab="",bty='n',yaxt="n",xlim=c(1.5,6))
+abline(h=0)
+lines(x[x>=2],5*m1[x>=2])
+lines(x[x>=2],5*m2[x>=2])
+lines(c(2,2),c(0,5*m1[x==2]))
+text(3,.18,"Normal",pos=4)
+lines(c(3.1,2.45),c(.18,.1))
+text(3.9,.1,"Contaminated\nNormal",pos=4)
+lines(c(3.95,3.2),c(.11,.067))
+
+@
+
+\end{figure}
+
+\afterpage{\clearpage}
+
+\section{Simulation 2: Testing for an Association}
+Pearson's correlation, Spearman's correlation, and the normrank correlation are compared for whether they maintain the stated Type 1 error rate, here 5\%, and for their power to detect an association. Other tests of association exist (e.g., polychoric correlations), but the desire was to compare these because they all use the same procedure after transforming the original data (with no transformation, ranking, or with eqn.~\ref{eqn:rankdelta} using $\delta=.7$) and the popularity of the first two procedures. A concern for Pearson's approach is that it is greatly influenced by extreme values \citep[e.g.,][]{Wilcox2017}. The ranking transformation used with Spearman's correlation directly addresses this so that all values are equally spaced, provided that there are no ties (ties, and discrete variables generally, are not considered in this paper). Compared with ranking, eqn.~\ref{eqn:rankdelta} changes this so that more extreme rank values are spaced more than less extreme rank values. Whether these extreme values are spaced further apart than the original data depends on the distribution of the original data (see Table~\ref{tab:spread}).
+
+
+<<corr3fun,echo=FALSE>>=
+rmixnorm <- function(n,mix = .85, wide = 3) {
+  if (abs(round(n*mix)) != n*mix) 
+      warning("Sample does not divide by mix. Will get close.")
+  g1 <- abs(round(n*mix))
+  sample(c(rnorm(g1),rnorm(n-g1,sd=wide))) 
+  }
+  
+normcorr <- function(x,y) cor.test(normrank(x,.7),normrank(y,.7))
+sigbw <- function(r,n) sqrt((1+r^2/2)/(n-3))
+cibw <- function(r,n) 
+  tanh(atanh(r) + c(-1,1)*sigbw(r,n) * qt(.975,n-2)) 
+
+corr3 <- function(x,y,asvec=TRUE){
+  pear <- cor.test(x,y) 
+  spear <- cor.test(x,y,method="spearman")
+  spearmanCI <- cibw(spear$estimate,length(x))
+  norm <- normcorr(x,y)
+  ifelse(asvec,
+         pcis <- c(pear$p.value,pear$conf.int[1],pear$conf.int[2],
+                   spear$p.value,spearmanCI[1],spearmanCI[2],
+                   norm$p.value, norm$conf.int[1], norm$conf.int[2]),
+         {pcis <- matrix(c(pear$p.value,pear$conf.int[1],pear$conf.int[2],
+                           spear$p.value,spearmanCI[1],spearmanCI[2],
+                           norm$p.value, norm$conf.int[1], norm$conf.int[2]),ncol=4)
+          rownames(pcis) <- c("p","lb","ub")
+          colnames(pcis) <- c("Pearson","Spearman","normCorr")})
+    return(pcis)
+      }
+@
+
+
+
+<<makingdists,echo=FALSE>>=
+rnorm2 <- function(x) rnorm(x)^2
+rchi1 <- function(x) rchisq(x,1)
+dists <- list(runif=runif,rnorm=rnorm,rmixnorm=rmixnorm,rchi1=rchi1)
+@
+
+
+First consider the performance of these measures when there is no association. Sample sizes of 40, 60, and 100 were used. The distributions--uniform, normal, contaminated normal, $\chi_1^2$--were the same for both variables. The $\chi^2$ distribution with $df=1$, which is equivalent to squaring a normally distributed variable with $\mu=0$ and $\sigma=1$, was included so that one of the variables is skewed (skewness is $\sqrt{8} \approx 2.83$). There were 10,000 replications per condition for the remaining simulations reported in this paper. The \textsf{R} code for these is in the Appendix 1 and can be adapted for different sample sizes, distributions, and other parameters. The $p$-values are found for the Pearson, Spearman, and normrank correlations using \textsf{R}'s \texttt{cor.test} function. The nominal $\alpha$ is .05, so the proportion of $p < .05$ should be near this value. The proportions of $p < .05$ results and the 95\% confidence intervals for these proportions, found with the Wilson method, are reported. Because the number of replications is large, the widths of these intervals are small. Differences of .01 between the correlation procedures are large enough that they are discussed and differences greater than .02 may be considered substantial in some contexts.
+
+Table~\ref{tab:nullcorr} shows for each procedure, for each distribution and for each sample size, the proportion of $p$-values less than .05 and the confidence intervals of these proportions. All are near the nominal level of .05. None of the individual cell proportions is greater than .01 away from the nominal level. Therefore, it is concluded that all are adequate at controlling Type 1 error.
+
+<<corsimu1_40,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000
+n <- 40
+vals1_40 <- array(dim=c(k,10,length(dists)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","Pearp","Pearlb","Pearub",
+           "Spearp","Spearlb","Spearub",
+           "normp","normlb","normub"),
+         c("unif","norm","mixnorm","chi1")))
+for (j in 1:length(dists))
+for (i in 1:k){
+  set.seed(8184+i)
+  x <- dists[[j]](n)
+  y <- dists[[j]](n) # + part of x if power
+  cc <- corr3(x,y)
+  vals1_40[i,,j] <- c(i,corr3(x,y))  
+}
+@
+
+<<corsimu1_60,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000
+n <- 60
+vals1_60 <- array(dim=c(k,10,length(dists)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","Pearp","Pearlb","Pearub",
+           "Spearp","Spearlb","Spearub",
+           "normp","normlb","normub"),
+         c("unif","norm","mixnorm","chi1")))
+for (j in 1:length(dists))
+for (i in 1:k){
+  set.seed(8184+i)
+  x <- dists[[j]](n)
+  y <- dists[[j]](n) # + part of x if power
+  cc <- corr3(x,y)
+  vals1_60[i,,j] <- c(i,corr3(x,y))  
+}
+@
+
+<<corsimu1_100,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000
+n <- 100
+vals1_100 <- array(dim=c(k,10,length(dists)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","Pearp","Pearlb","Pearub",
+           "Spearp","Spearlb","Spearub",
+           "normp","normlb","normub"),
+         c("unif","norm","mixnorm","chi1")))
+for (j in 1:length(dists))
+for (i in 1:k){
+  set.seed(8184+i)
+  x <- dists[[j]](n)
+  y <- dists[[j]](n) # + part of x if power
+  cc <- corr3(x,y)
+  vals1_100[i,,j] <- c(i,corr3(x,y))  
+}
+@
+
+
+<<echo=FALSE>>=
+lt05a <- function(p) mean(p < .05)
+wcilb <- function(x) binconf(sum(x < .05),length(x))[2] 
+wciub <- function(x) binconf(sum(x < .05),length(x))[3] 
+psig_40 <- apply(vals1_40[,c(2,5,8),],c(2,3),lt05a)
+psig_60 <- apply(vals1_60[,c(2,5,8),],c(2,3),lt05a)
+psig_100 <- apply(vals1_100[,c(2,5,8),],c(2,3),lt05a)
+lb_40 <- t(apply(vals1_40[,c(2,5,8),],c(2,3),wcilb))
+ub_40 <- t(apply(vals1_40[,c(2,5,8),],c(2,3),wciub))
+lb_60 <- t(apply(vals1_60[,c(2,5,8),],c(2,3),wcilb))
+ub_60 <- t(apply(vals1_60[,c(2,5,8),],c(2,3),wciub))
+lb_100 <- t(apply(vals1_100[,c(2,5,8),],c(2,3),wcilb))
+ub_100 <- t(apply(vals1_100[,c(2,5,8),],c(2,3),wciub))
+@
+
+
+<<tabssimu1p,results='asis',echo=FALSE>>=
+tabNULLcor <- rbind(t(psig_40),t(psig_60),t(psig_100))
+tc <- tabNULLcor
+@
+
+<<echo=FALSE>>=
+p3 <- function(x) sub("0.",".",sprintf("%0.3f",x),fixed=TRUE)
+@
+
+
+
+
+\begin{table}[!ht] \caption{Proportion of replications where $p < .05$ for the different distributions, sample sizes, and correlation measures when there is no association (i.e., when the null hypothesis is true). } \label{tab:nullcorr}
+\begin{center}
+\footnotesize
+\begin{tabular}{l c c c c c c}
+& \multicolumn{6}{c}{Correlation Measures} \\
+& \multicolumn{2}{c}{Pearson} & \multicolumn{2}{c}{Spearman} & 
+  \multicolumn{2}{c}{normrank} \\
+\cline{2-7}
+& Prop. & 95\% CI & Prop. & 95\% CI & Prop. & 95\% CI\\
+\cline{2-7}
+n = 40 &&&&&& \\ \cline{1-1} 
+ Uniform & \Sexpr{p3(tc[1,1])} & (\Sexpr{p3(lb_40[1,1])}, \Sexpr{p3(ub_40[1,1])}) & 
+            \Sexpr{p3(tc[1,2])} & (\Sexpr{p3(lb_40[1,2])}, \Sexpr{p3(ub_40[1,2])}) & 
+            \Sexpr{p3(tc[1,3])} & (\Sexpr{p3(lb_40[1,3])}, \Sexpr{p3(ub_40[1,3])}) \\
+ Normal & \Sexpr{p3(tc[2,1])} & (\Sexpr{p3(lb_40[2,1])}, \Sexpr{p3(ub_40[2,1])}) & 
+            \Sexpr{p3(tc[2,2])} & (\Sexpr{p3(lb_40[2,2])}, \Sexpr{p3(ub_40[2,2])}) & 
+            \Sexpr{p3(tc[2,3])} & (\Sexpr{p3(lb_40[2,3])}, \Sexpr{p3(ub_40[2,3])})  \\
+ Contaminated & \Sexpr{p3(tc[3,1])} & (\Sexpr{p3(lb_40[3,1])}, \Sexpr{p3(ub_40[3,1])}) & 
+            \Sexpr{p3(tc[3,2])} & (\Sexpr{p3(lb_40[3,2])}, \Sexpr{p3(ub_40[3,2])}) & 
+            \Sexpr{p3(tc[3,3])} & (\Sexpr{p3(lb_40[3,3])}, \Sexpr{p3(ub_40[3,3])}) \\
+ $\chi_1^2$ & \Sexpr{p3(tc[4,1])} & (\Sexpr{p3(lb_40[4,1])}, \Sexpr{p3(ub_40[4,1])}) & 
+            \Sexpr{p3(tc[4,2])} & (\Sexpr{p3(lb_40[4,2])}, \Sexpr{p3(ub_40[4,2])}) & 
+            \Sexpr{p3(tc[4,3])} & (\Sexpr{p3(lb_40[4,3])}, \Sexpr{p3(ub_40[4,3])}) \\
+\hline
+n = 60  &&&&&& \\ \cline{1-1}  
+Uniform & \Sexpr{p3(tc[5,1])} & (\Sexpr{p3(lb_60[1,1])}, \Sexpr{p3(ub_60[1,1])}) & 
+            \Sexpr{p3(tc[5,2])} & (\Sexpr{p3(lb_60[1,2])}, \Sexpr{p3(ub_60[1,2])}) & 
+            \Sexpr{p3(tc[5,3])} & (\Sexpr{p3(lb_60[1,3])}, \Sexpr{p3(ub_60[1,3])}) \\
+Normal & \Sexpr{p3(tc[6,1])} & (\Sexpr{p3(lb_60[2,1])}, \Sexpr{p3(ub_60[2,1])}) & 
+            \Sexpr{p3(tc[6,2])} & (\Sexpr{p3(lb_60[2,2])}, \Sexpr{p3(ub_60[2,2])}) & 
+            \Sexpr{p3(tc[6,3])} & (\Sexpr{p3(lb_60[2,3])}, \Sexpr{p3(ub_60[2,3])}) \\
+Contaminated & \Sexpr{p3(tc[7,1])} & (\Sexpr{p3(lb_60[3,1])}, \Sexpr{p3(ub_60[3,1])}) & 
+            \Sexpr{p3(tc[7,2])} & (\Sexpr{p3(lb_60[3,2])}, \Sexpr{p3(ub_60[3,2])}) & 
+            \Sexpr{p3(tc[7,3])} & (\Sexpr{p3(lb_60[3,3])}, \Sexpr{p3(ub_60[3,3])}) \\
+$\chi_1^2$ & \Sexpr{p3(tc[8,1])} & (\Sexpr{p3(lb_60[4,1])}, \Sexpr{p3(ub_60[4,1])}) & 
+            \Sexpr{p3(tc[8,2])} & (\Sexpr{p3(lb_60[4,2])}, \Sexpr{p3(ub_60[4,2])}) & 
+            \Sexpr{p3(tc[8,3])} & (\Sexpr{p3(lb_60[4,3])}, \Sexpr{p3(ub_60[4,3])}) \\
+\hline
+n = 100  &&&&&& \\ \cline{1-1}
+Uniform & \Sexpr{p3(tc[9,1])} & (\Sexpr{p3(lb_100[1,1])}, \Sexpr{p3(ub_100[1,1])}) & 
+            \Sexpr{p3(tc[9,2])} & (\Sexpr{p3(lb_100[1,2])}, \Sexpr{p3(ub_100[1,2])}) & 
+            \Sexpr{p3(tc[9,3])} & (\Sexpr{p3(lb_100[1,3])}, \Sexpr{p3(ub_100[1,3])}) \\
+Normal & \Sexpr{p3(tc[10,1])} & (\Sexpr{p3(lb_100[2,1])}, \Sexpr{p3(ub_100[2,1])}) & 
+            \Sexpr{p3(tc[10,2])} & (\Sexpr{p3(lb_100[2,2])}, \Sexpr{p3(ub_100[2,2])}) & 
+            \Sexpr{p3(tc[10,3])} & (\Sexpr{p3(lb_100[2,3])}, \Sexpr{p3(ub_100[2,3])}) \\
+Contaminated & \Sexpr{p3(tc[11,1])} & (\Sexpr{p3(lb_100[3,1])}, \Sexpr{p3(ub_100[3,1])}) & 
+            \Sexpr{p3(tc[11,2])} & (\Sexpr{p3(lb_100[3,2])}, \Sexpr{p3(ub_100[3,2])}) & 
+            \Sexpr{p3(tc[11,3])} & (\Sexpr{p3(lb_100[3,3])}, \Sexpr{p3(ub_100[3,3])}) \\
+$\chi_1^2$ & \Sexpr{p3(tc[12,1])} & (\Sexpr{p3(lb_100[4,1])}, \Sexpr{p3(ub_100[4,1])}) & 
+            \Sexpr{p3(tc[12,2])} & (\Sexpr{p3(lb_100[4,2])}, \Sexpr{p3(ub_100[4,2])}) & 
+            \Sexpr{p3(tc[12,3])} & (\Sexpr{p3(lb_100[4,3])}, \Sexpr{p3(ub_100[4,3])}) \\
+\hline
+\multicolumn{7}{l}{95\% confidence intervals found with Wilson's method.} \\ 
+\multicolumn{7}{l}{Ten thousand replications per cell.} \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+
+
+This simulation was repeated, but with the null hypothesis being false. The variables were created using the three distributions but for one of the variables .32 times the other was added. This results in a Pearson correlation of approximately $r = .30$, what \citet{Cohen1992} called a medium sized effect, for the normally distributed variables. The correlations are slightly different for the other distributions and other measures. The primary interest here is whether the different statistical procedures vary in how well they detect an association for the same data, not differences across the distributions.
+
+<<corsimu2_40,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000
+n <- 40
+vals2_40 <- array(dim=c(k,10,length(dists)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","Pearp","Pearlb","Pearub",
+           "Spearp","Spearlb","Spearub",
+           "normp","normlb","normub"),
+         c("unif","norm","mixnorm","chi1")))
+for (j in 1:length(dists))
+for (i in 1:k){
+  set.seed(8184+i)
+  x <- dists[[j]](n)
+  y <- dists[[j]](n) + .32 * x
+  cc <- corr3(x,y)
+  vals2_40[i,,j] <- c(i,corr3(x,y))  
+}
+@
+
+<<corsimu2_60,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000
+n <- 60
+vals2_60 <- array(dim=c(k,10,length(dists)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","Pearp","Pearlb","Pearub",
+           "Spearp","Spearlb","Spearub",
+           "normp","normlb","normub"),
+         c("unif","norm","mixnorm","chi1")))
+for (j in 1:length(dists))
+for (i in 1:k){
+  set.seed(8184+i)
+  x <- dists[[j]](n)
+  y <- dists[[j]](n) + .32 * x
+  cc <- corr3(x,y)
+  vals2_60[i,,j] <- c(i,corr3(x,y))  
+}
+@
+
+<<corsimu2_100,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000
+n <- 100
+vals2_100 <- array(dim=c(k,10,length(dists)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","Pearp","Pearlb","Pearub",
+           "Spearp","Spearlb","Spearub",
+           "normp","normlb","normub"),
+         c("unif","norm","mixnorm","chi1")))
+for (j in 1:length(dists))
+for (i in 1:k){
+  set.seed(8184+i)
+  x <- dists[[j]](n)
+  y <- dists[[j]](n) + .32 * x
+  cc <- corr3(x,y)
+  vals2_100[i,,j] <- c(i,corr3(x,y))  
+}
+@
+
+
+<<echo=FALSE,echo=FALSE>>=
+psig2_40 <- apply(vals2_40[,c(2,5,8),],c(2,3),lt05a)
+psig2_60 <- apply(vals2_60[,c(2,5,8),],c(2,3),lt05a)
+psig2_100 <- apply(vals2_100[,c(2,5,8),],c(2,3),lt05a)
+lb2_40 <- t(apply(vals2_40[,c(2,5,8),],c(2,3),wcilb))
+ub2_40 <- t(apply(vals2_40[,c(2,5,8),],c(2,3),wciub))
+lb2_60 <- t(apply(vals2_60[,c(2,5,8),],c(2,3),wcilb))
+ub2_60 <- t(apply(vals2_60[,c(2,5,8),],c(2,3),wciub))
+lb2_100 <- t(apply(vals2_100[,c(2,5,8),],c(2,3),wcilb))
+ub2_100 <- t(apply(vals2_100[,c(2,5,8),],c(2,3),wciub))
+@
+
+
+<<tabssimu2p,results='asis',echo=FALSE>>=
+tab2cor <- rbind(t(psig2_40),t(psig2_60),t(psig2_100))
+tc2 <- tab2cor
+@
+
+Table~\ref{tab:nonnullcorr} shows the proportion of the replications where the null hypothesis was correctly rejected for each procedure, for each distribution, and for each sample size. As expected, these proportions increase with sample size (i.e., the power increases with the sample size). For the normal distribution, Pearson's correlation correctly rejects $H_o$ about 1\% more often than the normrank correlation and about 4-5\% more than Spearman's correlation. Thus, in this situation, Spearman's is the least powerful and Pearson's is the most powerful. With both the uniform and contaminated normal distributions, the normrank procedure had about a 3-4\% advantage over Pearson's with Spearman's performing between the two. Based on Micceri's (\citeyear{Micceri1989}) findings, where most distributions he analyzed had greater than normal kurtosis and a small proportion less than normal, it is likely that education and other social science researchers will face circumstances where the normrank is more powerful than Pearson's procedure. In none of the situations examined was Spearman's procedure the most powerful procedure. It is recommended not to use Spearman's correlation and it will not be further examined in this paper.  
+
+\begin{table}[!ht] \caption{Proportion of replications where $p < .05$ for the different distributions, sample sizes, and correlation measures when there is an association (i.e., when the null hypothesis is false). } \label{tab:nonnullcorr}
+\begin{center}
+\footnotesize
+\begin{tabular}{l  c c c c c c}
+&\multicolumn{6}{c}{Correlation Measures} \\
+ & \multicolumn{2}{c}{Pearson} & \multicolumn{2}{c}{Spearman} & \multicolumn{2}{c}{normrank} \\
+\cline{2-7}
+& Prop. & 95\% CI & Prop. & 95\% CI & Prop. & 95\% CI \\
+\cline{2-7}
+n = 40 &&&&&& \\ \cline{1-1} 
+ Uniform & \Sexpr{p3(tc2[1,1])} & (\Sexpr{p3(lb2_40[1,1])}, \Sexpr{p3(ub2_40[1,1])}) & 
+            \Sexpr{p3(tc2[1,2])} & (\Sexpr{p3(lb2_40[1,2])}, \Sexpr{p3(ub2_40[1,2])}) & 
+            \Sexpr{p3(tc2[1,3])} & (\Sexpr{p3(lb2_40[1,3])}, \Sexpr{p3(ub2_40[1,3])}) \\
+ Normal &   \Sexpr{p3(tc2[2,1])} & (\Sexpr{p3(lb2_40[2,1])}, \Sexpr{p3(ub2_40[2,1])}) & 
+            \Sexpr{p3(tc2[2,2])} & (\Sexpr{p3(lb2_40[2,2])}, \Sexpr{p3(ub2_40[2,2])}) & 
+            \Sexpr{p3(tc2[2,3])} & (\Sexpr{p3(lb2_40[2,3])}, \Sexpr{p3(ub2_40[2,3])}) \\
+ Contaminated & \Sexpr{p3(tc2[3,1])} & (\Sexpr{p3(lb2_40[3,1])}, \Sexpr{p3(ub2_40[3,1])}) & 
+            \Sexpr{p3(tc2[3,2])} & (\Sexpr{p3(lb2_40[3,2])}, \Sexpr{p3(ub2_40[3,2])}) & 
+            \Sexpr{p3(tc2[3,3])} & (\Sexpr{p3(lb2_40[3,3])}, \Sexpr{p3(ub2_40[3,3])}) \\
+ $\chi_1^2$ & 
+            \Sexpr{p3(tc2[4,1])} & (\Sexpr{p3(lb2_40[4,1])}, \Sexpr{p3(ub2_40[4,1])}) & 
+            \Sexpr{p3(tc2[4,2])} & (\Sexpr{p3(lb2_40[4,2])}, \Sexpr{p3(ub2_40[4,2])}) & 
+            \Sexpr{p3(tc2[4,3])} & (\Sexpr{p3(lb2_40[4,3])}, \Sexpr{p3(ub2_40[4,3])}) \\
+\hline
+n = 60 &&&&&& \\ \cline{1-1} 
+Uniform & \Sexpr{p3(tc2[5,1])} & (\Sexpr{p3(lb2_60[1,1])}, \Sexpr{p3(ub2_60[1,1])}) & 
+            \Sexpr{p3(tc2[5,2])} & (\Sexpr{p3(lb2_60[1,2])}, \Sexpr{p3(ub2_60[1,2])}) & 
+            \Sexpr{p3(tc2[5,3])} & (\Sexpr{p3(lb2_60[1,3])}, \Sexpr{p3(ub2_60[1,3])}) \\
+Normal & \Sexpr{p3(tc2[6,1])} & (\Sexpr{p3(lb2_60[2,1])}, \Sexpr{p3(ub2_60[2,1])}) & 
+            \Sexpr{p3(tc2[6,2])} & (\Sexpr{p3(lb2_60[2,2])}, \Sexpr{p3(ub2_60[2,2])}) & 
+            \Sexpr{p3(tc2[6,3])} & (\Sexpr{p3(lb2_60[2,3])}, \Sexpr{p3(ub2_60[2,3])}) \\
+Contaminated & \Sexpr{p3(tc2[7,1])} & (\Sexpr{p3(lb2_60[3,1])}, \Sexpr{p3(ub2_60[3,1])}) & 
+            \Sexpr{p3(tc2[7,2])} & (\Sexpr{p3(lb2_60[3,2])}, \Sexpr{p3(ub2_60[3,2])}) & 
+            \Sexpr{p3(tc2[7,3])} & (\Sexpr{p3(lb2_60[3,3])}, \Sexpr{p3(ub2_60[3,3])}) \\
+$\chi_1^2$ & 
+            \Sexpr{p3(tc2[8,1])} & (\Sexpr{p3(lb2_60[4,1])}, \Sexpr{p3(ub2_60[4,1])}) & 
+            \Sexpr{p3(tc2[8,2])} & (\Sexpr{p3(lb2_60[4,2])}, \Sexpr{p3(ub2_60[4,2])}) & 
+            \Sexpr{p3(tc2[8,3])} & (\Sexpr{p3(lb2_60[4,3])}, \Sexpr{p3(ub2_60[4,3])}) \\
+\hline
+n = 100 &&&&&& \\ \cline{1-1} 
+Uniform & \Sexpr{p3(tc2[9,1])} & (\Sexpr{p3(lb2_100[1,1])}, \Sexpr{p3(ub2_100[1,1])}) & 
+            \Sexpr{p3(tc2[9,2])} & (\Sexpr{p3(lb2_100[1,2])}, \Sexpr{p3(ub2_100[1,2])}) & 
+            \Sexpr{p3(tc2[9,3])} & (\Sexpr{p3(lb2_100[1,3])}, \Sexpr{p3(ub2_100[1,3])}) \\
+Normal & \Sexpr{p3(tc2[10,1])} & (\Sexpr{p3(lb2_100[2,1])}, \Sexpr{p3(ub2_100[2,1])}) & 
+            \Sexpr{p3(tc2[10,2])} & (\Sexpr{p3(lb2_100[2,2])}, \Sexpr{p3(ub2_100[2,2])}) & 
+            \Sexpr{p3(tc2[10,3])} & (\Sexpr{p3(lb2_100[2,3])}, \Sexpr{p3(ub2_100[2,3])}) \\
+Contaminated & \Sexpr{p3(tc2[11,1])} & (\Sexpr{p3(lb2_100[3,1])}, \Sexpr{p3(ub2_100[3,1])}) & 
+            \Sexpr{p3(tc2[11,2])} & (\Sexpr{p3(lb2_100[3,2])}, \Sexpr{p3(ub2_100[3,2])}) & 
+            \Sexpr{p3(tc2[11,3])} & (\Sexpr{p3(lb2_100[3,3])}, \Sexpr{p3(ub2_100[3,3])}) \\
+$\chi_1^2$ &
+            \Sexpr{p3(tc2[12,1])} & (\Sexpr{p3(lb2_100[4,1])}, \Sexpr{p3(ub2_100[4,1])}) &
+            \Sexpr{p3(tc2[12,2])} & (\Sexpr{p3(lb2_100[4,2])}, \Sexpr{p3(ub2_100[4,2])}) &
+            \Sexpr{p3(tc2[12,3])} & (\Sexpr{p3(lb2_100[4,3])}, \Sexpr{p3(ub2_100[4,3])})  \\  
+\hline
+\multicolumn{7}{l}{95\% confidence intervals found with Wilson's method.} \\ 
+\multicolumn{7}{l}{Ten thousand replications per cell.} \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+
+
+\afterpage{\clearpage}
+\section{Simulation 3: Exploratory Factor Analysis (EFA)}
+In this simulation Pearson's correlation and the normrank correlation are compared for exploratory factor analysis (EFA) when there are no underlying factors and when there are 1 to 4 underlying factors with twelve observed variables. Spearman's is not included as it performed worse than others for all distributions tested in the previous simulation. 
+
+EFA is one of the most used forms of latent variable model particularly within the educational and social sciences. It is usually the first latent variable model that students are taught. If you have some number of observed variables and believe that this observed set is caused by a smaller number of latent variables, but you do not have particular relationships hypothesized, EFA can be an appropriate tool. EFA produces two main results. First, it can suggest how many latent variables are appropriate for modeling the data. This is often done using a related technique: calculating the eigenvalues of the correlation matrix. The second result is that it shows which observed variables are related to the same latent variable as others. There are several sources for EFA, for example, in increasing level of assumed mathematical knowledge: \citet{WrightWells2020}, \citet{LoehlinBeaujean2017}, \citet{Mair2018}, \citet{Mulaik2010}, and \citet{BartholomewEA2011}. %A very good, \emph{in preparation}, book by Revelle is available at \url{http://personality-project.org/r/book/}.
+
+The simulation in this section will examine whether using a Pearson correlation matrix or a matrix composed using the normrank transformation is better able both to determine the correct number of latent variables and to identify the loadings correctly. \citet[see also \citeauthor{AuerswaldMoshagen2019}, \citeyear{AuerswaldMoshagen2019}]{VelicerEA2000} review different methods to determine the number of factors. Based on this, the empirical Kaiser criterion is used \citep{BraekenAssen2017}. It involves comparing the observed eigenvalues with those observed from a random data matrix. It is implemented in the \textbf{EFA.dimensions} package \citep{EFA.dimensions}. To estimate whether the pattern of factor loadings is accurate, factor analysis was conducted assuming the correct number of factors. The highest loading for each observed variable was recorded. For the complete pattern of loadings to be deemed accurate, all observed variables which were influenced by the same latent variable during data creation had to have their highest loading for the same latent variable. This was done with the default settings of the \textsf{R} function \texttt{factanal}.
+
+Only a single sample size is used here. There is no agreed upon minimum sample size for EFA  \citep{deWinterEA2009, MacCallumEA2001}, but several rules of thumb exist. \citet{LoehlinBeaujean2017} say ``with high commonalities, a small number of factors, and a relatively large number of indicators per factor, $N$s of 100 or or less yield good recovery of factors'' (p.~207). A sample size of 100 will be used with twelve observed variables since it is near the minimum that might be considered adequate (though larger samples are recommended). Each observed variable will be created as: $\mathit{observed}_i = \mathit{latent}_i + x \cdot \mathit{noise}_i$, where $x$ is a scalar to control the amount of noise (see below). 
+
+The latent variables and the noise variables are each drawn from one of several contaminated normal distributions. Because \citet{Micceri1989} found the preponderance of the variables he examined to have greater than normal kurtosis, this simulation will focus on distributions with varying amounts of contamination for the contaminated normal distribution. In addition, results for the $\chi_1^2$ distribution are presented for comparison to show a skewed distribution.
+
+Contamination for contaminated normal distributions can be created in different ways. Here the variability of the two distributions are fixed at $\sigma_1 = 1$ and $\sigma_2 = 3$ and the proportion from each of these distributions is varied between 0 and 1, with the endpoints being normal distributions. This is done in 101 steps of .01. The kurtosis for these different contaminated normal distributions is shown in Figure~\ref{fig:efakurtplot}. The maximum kurtosis is when about 10\% is drawn from a normal distribution with $\sigma = 3$. The uniform distribution is presented for comparison.
+  
+Different amounts of noise are used for the different numbers of latent variables in order to prevent results being at ceiling (correctly identifying that there are four latent variables is more difficult than identifying that there is one). The scalars for noise are $x=2.5$, $x=2$, $x=1.5$, and $x=1.2$ for one, two, three, and four latent variables respectively.
+
+
+<<createdataefa,echo=FALSE>>=
+create0data <- function(n,mix,sigma=3,noise=1){
+  ov1 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov2 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov3 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov4 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov5 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov6 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov7 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov8 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov9 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov10 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov11 <- noise*rcnorm(n,mix,sigma=sigma)   
+  ov12 <- noise*rcnorm(n,mix,sigma=sigma)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+create1data <- function(n,mix,sigma=3,noise=1){
+  lv1 <- rcnorm(n,mix,sigma=sigma)
+  ov1 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov2 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov3 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov4 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov5 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov6 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov7 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov8 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov9 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov10 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov11 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov12 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+
+create2data <- function(n,mix,sigma=3,noise=1){
+  lv1 <- rcnorm(n,mix,sigma=sigma)
+  lv2 <- rcnorm(n,mix,sigma=sigma)
+  ov1 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov2 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov3 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov4 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov5 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov6 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov7 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov8 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov9 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov10 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov11 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov12 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+
+create3data <- function(n,mix,sigma=3,noise=1){
+  lv1 <- rcnorm(n,mix,sigma=sigma)
+  lv2 <- rcnorm(n,mix,sigma=sigma)
+  lv3 <- rcnorm(n,mix,sigma=sigma)
+  ov1 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov2 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov3 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov4 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov5 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov6 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov7 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov8 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov9 <- lv3 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov10 <- lv3 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov11 <- lv3 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov12 <- lv3 + noise*rcnorm(n,mix,sigma=sigma)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+create4data <- function(n,mix,sigma=3,noise=1){
+  lv1 <- rcnorm(n,mix,sigma=sigma)
+  lv2 <- rcnorm(n,mix,sigma=sigma)
+  lv3 <- rcnorm(n,mix,sigma=sigma)
+  lv4 <- rcnorm(n,mix,sigma=sigma)
+  ov1 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov2 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov3 <- lv1 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov4 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov5 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov6 <- lv2 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov7 <- lv3 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov8 <- lv3 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov9 <- lv3 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov10 <- lv4 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov11 <- lv4 + noise*rcnorm(n,mix,sigma=sigma)   
+  ov12 <- lv4 + noise*rcnorm(n,mix,sigma=sigma)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+@
+
+<<kurtefa,cache=TRUE,echo=FALSE>>=
+mixvals <- seq(0,1,.01) 
+set.seed(4728)
+kurtvalsefa <- vector(length=length(mixvals))
+n <- 10000000
+for (i in 1:length(mixvals))
+  kurtvalsefa[i] <- e1071::kurtosis(rcnorm(n,mixvals[i]))
+@
+
+\begin{figure}[!ht] \caption{Kurtosis for normal distributions with $\sigma = 1$ for proportions from 0 to 1 with the remainder being drawn from normal distributions with $\sigma = 3$, as well as the kurtosis for the uniform distribution.} \label{fig:efakurtplot}
+<<efakurtplot,fig.align="center",fig.height=3.2*1.2,out.height="3.2in",fig.width=4.5*1.2,out.width="4.5in",echo=FALSE>>=
+par(mar=c(5,4,2,5))
+plot(mixvals,kurtvalsefa,type="l",cex=.5,xlab="Proportion with sd = 1",ylab="Kurtosis",
+     las = 1,ylim=c(-2,6))
+text(.28,3.5,"Contaminated\nNormal",pos=4)
+abline(h=-1.2) 
+mtext("Uniform",4,1,at=-1.2,las=1)
+abline(h=0,lty=2)
+mtext("Normal",4,1,at=0,las=1)
+@
+\end{figure}
+
+
+
+<<fa,echo=FALSE>>=
+ncorrmat <- function(x){
+ if (any(is.na(x)))
+   warning("Some missing values. NAs treated as maxima.")
+ return(cor(apply(x,2,normrank,delta=.7))) }
+
+right1 <- function(x){
+    m1 <- apply(x,1,which.max)
+  right1 <- sd(m1) == 0
+  return(right1)}
+right2 <- function(x){
+  m1 <- apply(x,1,which.max)
+  right2 <- (m1[1] == m1[2]) && (m1[1] == m1[3]) && (m1[1] == m1[4]) && 
+    (m1[1] == m1[5]) && (m1[1] == m1[6]) && (m1[1] != m1[7]) &&
+    (m1[7] == m1[8]) && (m1[7] == m1[9]) && (m1[7] == m1[10]) && 
+    (m1[7] == m1[11]) && (m1[7] == m1[12]) 
+  return(right2)}
+right3 <- function(x){
+  m1 <- apply(x,1,which.max)
+  right3 <- (m1[1] == m1[2]) && (m1[1] == m1[3]) && (m1[1] == m1[4]) && 
+    (m1[1] != m1[5]) && 
+    (m1[5] == m1[6]) && (m1[5] == m1[7]) && (m1[5] == m1[8]) && 
+    (m1[5] != m1[9]) && 
+    (m1[9] == m1[10]) && (m1[9] == m1[11]) && (m1[9] == m1[12]) 
+  return(right3)}
+right4 <- function(x){
+  m1 <- apply(x,1,which.max)
+  right4 <- (m1[1] == m1[2]) && (m1[1] == m1[3]) && (m1[1] != m1[4]) && 
+            (m1[4] == m1[5]) && (m1[4] == m1[6]) && (m1[4] != m1[7]) && 
+            (m1[7] == m1[8]) && (m1[7] == m1[9]) && (m1[7] != m1[10]) && 
+            (m1[10] == m1[11]) && (m1[10] == m1[12])
+  return(right4)}
+
+fa <- function(x,fac){
+  cx <- cor(x)
+  rcx <-ncorrmat(x)
+  nf1 <- as.numeric(DIMTESTS(cx,tests="EMPKC",Ncases=nrow(x),display=0)$dimtests)
+  nf2 <- as.numeric(DIMTESTS(rcx,tests="EMPKC",Ncases=nrow(x),display=0)$dimtests)
+  if (fac > 1) fa1 <- factanal(covmat=cx,factor=fac)$loadings
+  if (fac > 1) fa2 <- factanal(covmat=rcx,factor=fac)$loadings
+  if (fac < 2) r1 <- r2 <- NA
+  if (fac == 2) {
+    r1 <- right2(fa1)
+    r2 <- right2(fa2)}
+  if (fac == 3) {
+    r1 <- right3(fa1)
+    r2 <- right3(fa2)}
+  if (fac == 4) {
+    r1 <- right4(fa1)
+    r2 <- right4(fa2)}
+return(c(nf1,nf2,r1,r2))
+}
+@
+
+
+<<simu0refa,cache=TRUE,echo=FALSE>>=
+set.seed(3940)
+k <- 10000
+n <- 100
+vals0 <- array(dim=c(k,5,length(mixvals)),
+  dimnames =  
+    list(c(paste0("replics",1:k)),
+         c("i","nf1EMPKC","nf2EMPKC","load1","load2"),
+         paste0("mix",mixvals)))
+for (j in 1:length(mixvals)){
+ for (i in 1:k){
+  set.seed(2712+i)
+  x <- create0data(n,mixvals[j])
+  vals0[i,,j] <- c(i,fa(x,fac=0))
+}}
+@
+
+<<echo=FALSE>>=
+eqv <- function(x,v) mean(x==v)
+s1eq0 <- apply(vals0[,2:3,],c(2,3),eqv,v=0)
+@
+
+
+<<simu1refa,echo=FALSE,cache=TRUE>>=
+set.seed(3716)
+k <- 10000
+n <- 100
+vals1 <- array(dim=c(k,5,length(mixvals)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","nf1EMPKC","nf2EMPKC","load1","load2"),
+           paste0("mix",mixvals)))
+for (j in 1:length(mixvals)){
+ for (i in 1:k){
+  set.seed(2592+i)
+  x <- create1data(n,mixvals[j],noise=2.5)
+  vals1[i,,j] <- c(i,fa(x,fac=1))
+}}
+@
+
+<<echo=FALSE>>=
+s1eq1 <- apply(vals1[,2:3,],c(2,3),eqv,v=1)
+@
+
+<<simu2refa,echo=FALSE,cache=TRUE>>=
+set.seed(88)
+k <- 10000
+n <- 100
+vals2 <- array(dim=c(k,5,length(mixvals)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","nf1EMPKC","nf2EMPKC","load1","load2"),
+           paste0("mix",mixvals)))
+for (j in 1:length(mixvals)){
+ for (i in 1:k){
+  set.seed(2532+i)
+  x <- create2data(n,mixvals[j],noise=2)
+  vals2[i,,j] <- c(i,fa(x,fac=2))
+}}
+@
+
+<<echo=FALSE>>=
+s1eq2 <- apply(vals2[,2:3,],c(2,3),eqv,v=2)
+@
+
+<<echo=FALSE>>=
+rloads2 <- apply(vals2[,4:5,],c(2,3),mean) #rights
+@
+
+<<simu3refa,echo=FALSE,cache=TRUE>>=
+set.seed(1188)
+k <- 10000  # **
+n <- 100
+vals3 <- array(dim=c(k,5,length(mixvals)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","nf1EMPKC","nf2EMPKC","load1","load2"),
+           paste0("mix",mixvals)))
+for (j in 1:length(mixvals)){
+ for (i in 1:k){
+  set.seed(2532+i)
+  x <- create3data(n,mixvals[j],noise=1.5)
+  vals3[i,,j] <- c(i,fa(x,fac=3))
+}}
+@
+
+<<echo=FALSE>>=
+s1eq3 <- apply(vals3[,2:3,],c(2,3),eqv,v=3)
+@
+
+<<loadright3,echo=FALSE>>=
+rloads3 <- apply(vals3[,4:5,],c(2,3),mean) #rights
+@
+
+
+<<simu4refa,echo=FALSE,cache=TRUE>>=
+set.seed(77)
+k <- 10000  #**
+n <- 100
+vals4 <- array(dim=c(k,5,length(mixvals)),
+  dimnames = 
+    list(c(paste0("replics",1:k)),
+         c("i","nf1EMPKC","nf2EMPKC","load1","load2"),
+           paste0("mix",mixvals)))
+for (j in 1:length(mixvals)){
+ for (i in 1:k){
+  set.seed(2532+i)
+  x <- create4data(n,mixvals[j],noise=1.2)
+  vals4[i,,j] <- c(i,fa(x,fac=4))
+}}
+@
+
+<<echo=FALSE>>=
+s1eq4 <- apply(vals4[,2:3,],c(2,3),eqv,v=4)
+@
+
+<<loadright4,echo=FALSE>>=
+rloads4 <- apply(vals4[,4:5,],c(2,3),mean) #rights
+@
+\begin{figure}[!ht] \caption{Proportion of replications identifying the correct number of latent factors. Note that the $y$-axes are different for the five plots. The proportion from the population with $\sigma = 3$ increased from 0 to 1 in steps of .01, with 10,000 replications at each step.} 
+\label{fig:numfactors}
+<<numfactorsx,fig.align="center",fig.height=4.3*1.1,out.height="4.3in",fig.width=6.3*1.1,out.width="6.3in",echo=FALSE,eval=TRUE>>=
+par(mfrow=c(2,3))
+plot.new()
+text(-.25,.9,"Black (top) line: normrank",pos=4,cex=1.2,xpd=TRUE)
+text(-.25,.7,"Grey (bottom) line: ",pos=4,cex=1.2,xpd=TRUE)
+text(.15,.54,"Untransformed",pos=4,cex=1.2)
+plot(mixvals,s1eq0[1,],col="white",xlab="Proportion with sd = 1",xaxt='n',yaxt='n',
+     main="Zero latent variables",font.main=1,las=1,ylab="Proportion",ylim=c(0,1))
+#points(mixvals,s1eq0[2,],pch=.5)
+lines(mixvals,s1eq0[1,],col="grey50")
+lines(mixvals,s1eq0[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+
+plot(mixvals,s1eq1[1,],main="One latent variable",col="white",xlab="Proportion with sd = 1",las=1,ylab="Proportion",ylim=c(0,1),font.main=1,xaxt='n',yaxt='n')
+lines(mixvals,s1eq1[1,],col="grey50")
+lines(mixvals,s1eq1[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+
+plot(mixvals,s1eq2[1,],main="Two latent variables",col="white",xaxt='n',yaxt='n',xlab="Proportion with sd = 1",las=1,ylab="Proportion",font.main=1,ylim=c(.5,1))
+lines(mixvals,s1eq2[1,],col="grey50")
+lines(mixvals,s1eq2[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+
+plot(mixvals,s1eq3[1,],col="white",main="Three latent variables",xaxt='n',yaxt='n',xlab="Proportion with sd = 1",las=1,ylab="Proportion",font.main=1,ylim=c(.5,1))
+lines(mixvals,s1eq3[1,],col="grey50")
+lines(mixvals,s1eq3[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+
+plot(mixvals,s1eq4[1,],col="white",main="Four latent variables",xlab="Proportion with sd = 1",xaxt='n',yaxt='n',las=1,ylab="Proportion",font.main=1,ylim=c(0,1))
+lines(mixvals,s1eq4[1,],col="grey50")
+lines(mixvals,s1eq4[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+@
+\end{figure}
+
+\begin{figure}[!ht] \caption{Proportion of time identifying the correct loadings (i.e., the highest loading being the same as the others influenced by the same factor). The proportion from the population with $\sigma = 3$ increased from 0 to 1 in steps of .01, with 10,000 replications at each step. Note that the $y$-axis scales are different.} \label{fig:loadingsright}
+<<loadingsright,fig.align="center",fig.height=4.3*1.2,out.height="4.3in",fig.width=4.9*1.2,out.width="4.9in",echo=FALSE>>=
+par(mfrow=c(2,2))
+par(mar=c(4,4,4,1))
+plot.new()
+text(-.25,.9,"Black (top) line: normrank",pos=4,cex=1.1,xpd=TRUE)
+text(-.25,.7,"Grey (bottom) line: ",pos=4,cex=1.1,xpd=TRUE)
+text(.15,.52,"Untransformed",pos=4,cex=1.1)
+
+plot(mixvals,rloads2[1,],main="Two latent variables",xaxt='n',yaxt='n',col="white",xlab="Proportion with sd = 1",las=1,ylab="Proportion",ylim=c(0,1))
+lines(mixvals,rloads2[1,],col="grey50")
+lines(mixvals,rloads2[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+
+plot(mixvals,rloads3[1,],main="Three latent variables",col="white",xlab="Proportion with sd = 1",las=1,ylab="Proportion",ylim=c(.35,1),xaxt='n',yaxt='n')
+lines(mixvals,rloads3[1,],col="grey50")
+lines(mixvals,rloads3[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+
+plot(mixvals,rloads4[1,],col="white",main="Four latent variables",xlab="Proportion with sd = 1",las=1,ylab="Proportion",ylim=c(.35,1),xaxt='n',yaxt='n')
+lines(mixvals,rloads4[1,],col="grey50")
+lines(mixvals,rloads4[2,])
+axis(1,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"))
+axis(2,seq(0,1,.2),c(".0",".2",".4",".6",".8","1.0"),las=1)
+
+@
+\end{figure}
+
+
+<<unicreatedataefa,echo=FALSE,eval=FALSE>>=
+unicreate0data <- function(n,noise=1){
+  ov1 <- noise*runif(n)   
+  ov2 <- noise*runif(n)   
+  ov3 <- noise*runif(n)   
+  ov4 <- noise*runif(n)   
+  ov5 <- noise*runif(n)   
+  ov6 <- noise*runif(n)   
+  ov7 <- noise*runif(n)   
+  ov8 <- noise*runif(n)   
+  ov9 <- noise*runif(n)   
+  ov10 <- noise*runif(n)   
+  ov11 <- noise*runif(n)   
+  ov12 <- noise*runif(n)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+unicreate1data <- function(n,noise=1){
+  lv1 <- runif(n)
+  ov1 <- lv1 + noise*runif(n)   
+  ov2 <- lv1 + noise*runif(n)   
+  ov3 <- lv1 + noise*runif(n)   
+  ov4 <- lv1 + noise*runif(n)   
+  ov5 <- lv1 + noise*runif(n)   
+  ov6 <- lv1 + noise*runif(n)   
+  ov7 <- lv1 + noise*runif(n)   
+  ov8 <- lv1 + noise*runif(n)   
+  ov9 <- lv1 + noise*runif(n)   
+  ov10 <- lv1 + noise*runif(n)   
+  ov11 <- lv1 + noise*runif(n)   
+  ov12 <- lv1 + noise*runif(n)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+
+unicreate2data <- function(n,noise=1){
+  lv1 <- runif(n)
+  lv2 <- runif(n)
+  ov1 <- lv1 + noise*runif(n)   
+  ov2 <- lv1 + noise*runif(n)   
+  ov3 <- lv1 + noise*runif(n)   
+  ov4 <- lv1 + noise*runif(n)   
+  ov5 <- lv1 + noise*runif(n)   
+  ov6 <- lv1 + noise*runif(n)   
+  ov7 <- lv2 + noise*runif(n)   
+  ov8 <- lv2 + noise*runif(n)   
+  ov9 <- lv2 + noise*runif(n)   
+  ov10 <- lv2 + noise*runif(n)   
+  ov11 <- lv2 + noise*runif(n)   
+  ov12 <- lv2 + noise*runif(n)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+
+unicreate3data <- function(n,noise=1){
+  lv1 <- runif(n)
+  lv2 <- runif(n)
+  lv3 <- runif(n)
+  ov1 <- lv1 + noise*runif(n)   
+  ov2 <- lv1 + noise*runif(n)   
+  ov3 <- lv1 + noise*runif(n)   
+  ov4 <- lv1 + noise*runif(n)   
+  ov5 <- lv2 + noise*runif(n)   
+  ov6 <- lv2 + noise*runif(n)   
+  ov7 <- lv2 + noise*runif(n)   
+  ov8 <- lv2 + noise*runif(n)   
+  ov9 <- lv3 + noise*runif(n)   
+  ov10 <- lv3 + noise*runif(n)   
+  ov11 <- lv3 + noise*runif(n)   
+  ov12 <- lv3 + noise*runif(n)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+unicreate4data <- function(n,noise=1){
+  lv1 <- runif(n)
+  lv2 <- runif(n)
+  lv3 <- runif(n)
+  lv4 <- runif(n)
+  ov1 <- lv1 + noise*runif(n)   
+  ov2 <- lv1 + noise*runif(n)   
+  ov3 <- lv1 + noise*runif(n)   
+  ov4 <- lv2 + noise*runif(n)   
+  ov5 <- lv2 + noise*runif(n)   
+  ov6 <- lv2 + noise*runif(n)   
+  ov7 <- lv3 + noise*runif(n)   
+  ov8 <- lv3 + noise*runif(n)   
+  ov9 <- lv3 + noise*runif(n)   
+  ov10 <- lv4 + noise*runif(n)   
+  ov11 <- lv4 + noise*runif(n)   
+  ov12 <- lv4 + noise*runif(n)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+@
+
+<<chisq1createdataefa,echo=FALSE>>=
+chicreate0data <- function(n,noise=1){
+  ov1 <- noise*rchisq(n,df=1)   
+  ov2 <- noise*rchisq(n,df=1)   
+  ov3 <- noise*rchisq(n,df=1)   
+  ov4 <- noise*rchisq(n,df=1)   
+  ov5 <- noise*rchisq(n,df=1)   
+  ov6 <- noise*rchisq(n,df=1)   
+  ov7 <- noise*rchisq(n,df=1)   
+  ov8 <- noise*rchisq(n,df=1)   
+  ov9 <- noise*rchisq(n,df=1)   
+  ov10 <- noise*rchisq(n,df=1)   
+  ov11 <- noise*rchisq(n,df=1)   
+  ov12 <- noise*rchisq(n,df=1)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+chicreate1data <- function(n,noise=1){
+  lv1 <- rchisq(n,df=1)
+  ov1 <- lv1 + noise*rchisq(n,df=1)   
+  ov2 <- lv1 + noise*rchisq(n,df=1)   
+  ov3 <- lv1 + noise*rchisq(n,df=1)   
+  ov4 <- lv1 + noise*rchisq(n,df=1)   
+  ov5 <- lv1 + noise*rchisq(n,df=1)   
+  ov6 <- lv1 + noise*rchisq(n,df=1)   
+  ov7 <- lv1 + noise*rchisq(n,df=1)   
+  ov8 <- lv1 + noise*rchisq(n,df=1)   
+  ov9 <- lv1 + noise*rchisq(n,df=1)   
+  ov10 <- lv1 + noise*rchisq(n,df=1)   
+  ov11 <- lv1 + noise*rchisq(n,df=1)   
+  ov12 <- lv1 + noise*rchisq(n,df=1)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+
+chicreate2data <- function(n,noise=1){
+  lv1 <- rchisq(n,df=1)
+  lv2 <- rchisq(n,df=1)
+  ov1 <- lv1 + noise*rchisq(n,df=1)   
+  ov2 <- lv1 + noise*rchisq(n,df=1)   
+  ov3 <- lv1 + noise*rchisq(n,df=1)   
+  ov4 <- lv1 + noise*rchisq(n,df=1)   
+  ov5 <- lv1 + noise*rchisq(n,df=1)   
+  ov6 <- lv1 + noise*rchisq(n,df=1)   
+  ov7 <- lv2 + noise*rchisq(n,df=1)   
+  ov8 <- lv2 + noise*rchisq(n,df=1)   
+  ov9 <- lv2 + noise*rchisq(n,df=1)   
+  ov10 <- lv2 + noise*rchisq(n,df=1)   
+  ov11 <- lv2 + noise*rchisq(n,df=1)   
+  ov12 <- lv2 + noise*rchisq(n,df=1)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+
+chicreate3data <- function(n,noise=1){
+  lv1 <- rchisq(n,df=1)
+  lv2 <- rchisq(n,df=1)
+  lv3 <- rchisq(n,df=1)
+  ov1 <- lv1 + noise*rchisq(n,df=1)   
+  ov2 <- lv1 + noise*rchisq(n,df=1)   
+  ov3 <- lv1 + noise*rchisq(n,df=1)   
+  ov4 <- lv1 + noise*rchisq(n,df=1)   
+  ov5 <- lv2 + noise*rchisq(n,df=1)   
+  ov6 <- lv2 + noise*rchisq(n,df=1)   
+  ov7 <- lv2 + noise*rchisq(n,df=1)   
+  ov8 <- lv2 + noise*rchisq(n,df=1)   
+  ov9 <- lv3 + noise*rchisq(n,df=1)   
+  ov10 <- lv3 + noise*rchisq(n,df=1)   
+  ov11 <- lv3 + noise*rchisq(n,df=1)   
+  ov12 <- lv3 + noise*rchisq(n,df=1)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+
+chicreate4data <- function(n,noise=1){
+  lv1 <- rchisq(n,df=1)
+  lv2 <- rchisq(n,df=1)
+  lv3 <- rchisq(n,df=1)
+  lv4 <- rchisq(n,df=1)
+  ov1 <- lv1 + noise*rchisq(n,df=1)   
+  ov2 <- lv1 + noise*rchisq(n,df=1)   
+  ov3 <- lv1 + noise*rchisq(n,df=1)   
+  ov4 <- lv2 + noise*rchisq(n,df=1)   
+  ov5 <- lv2 + noise*rchisq(n,df=1)   
+  ov6 <- lv2 + noise*rchisq(n,df=1)   
+  ov7 <- lv3 + noise*rchisq(n,df=1)   
+  ov8 <- lv3 + noise*rchisq(n,df=1)   
+  ov9 <- lv3 + noise*rchisq(n,df=1)   
+  ov10 <- lv4 + noise*rchisq(n,df=1)   
+  ov11 <- lv4 + noise*rchisq(n,df=1)   
+  ov12 <- lv4 + noise*rchisq(n,df=1)   
+  return(cbind(ov1,ov2,ov3,ov4,ov5,ov6,ov7,ov8,ov9,ov10,ov11,ov12))
+  }
+@
+
+
+<<chisimu0refa,cache=TRUE,echo=FALSE>>=
+set.seed(31940)
+k <- 10000 # **
+n <- 100 
+chivals0 <- matrix(nrow=k,ncol=5)
+colnames(chivals0) =  c("i","nf1EMPKC","nf2EMPKC","load1","load2")
+for (i in 1:k){
+  set.seed(27112+i)
+  x <- chicreate0data(n)
+  chivals0[i,] <- c(i,fa(x,fac=0))
+}
+@
+
+<<echo=FALSE>>=
+eqv <- function(x,v) mean(x==v)
+clb <- function(x,v) binconf(sum(x==v,na.rm=TRUE),length(x))[2]
+cub <- function(x,v) binconf(sum(x==v,na.rm=TRUE),length(x))[3]
+chis1eq0 <- rbind(apply(chivals0,2,eqv,v=0),
+              apply(chivals0,2,clb,v=0),
+              apply(chivals0,2,cub,v=0))[,2:3]
+@
+
+
+<<chisimu1refa,echo=FALSE,cache=TRUE>>=
+set.seed(3971)
+k <- 10000  # **
+n <- 100
+chivals1 <- matrix(nrow=k,ncol=5) 
+colnames(chivals1) <- c("i","nf1EMPKC","nf2EMPKC","load1","load2")
+ for (i in 1:k){
+  set.seed(25292+i)
+  x <- chicreate1data(n,noise=3.5)
+  chivals1[i,] <- c(i,fa(x,fac=1))
+}
+@
+
+<<echo=FALSE>>=
+chis1eq1 <- rbind(apply(chivals1,2,eqv,v=1),
+              apply(chivals1,2,clb,v=1),
+              apply(chivals1,2,cub,v=1))[,2:3]
+@
+
+<<chisimu2refa,echo=FALSE,cache=TRUE>>=
+set.seed(808)
+k <- 10000  # **
+n <- 100
+chivals2 <- matrix(nrow=k,ncol=5) 
+colnames(chivals2) <- c("i","nf1EMPKC","nf2EMPKC","load1","load2")
+for (i in 1:k){
+  set.seed(25132+i)
+  x <- chicreate2data(n,noise=2)
+  chivals2[i,] <- c(i,fa(x,fac=2))
+}
+@
+
+<<echo=FALSE>>=
+
+chis1eq2 <- rbind(apply(chivals2,2,eqv,v=2),
+              apply(chivals2,2,clb,v=2),
+              apply(chivals2,2,cub,v=2))[,2:3]
+
+@
+
+<<echo=FALSE>>=
+chirloads2 <- rbind(apply(chivals2[,4:5],2,mean), #rights
+  apply(chivals2[,4:5],2,clb,v=1),
+  apply(chivals2[,4:5],2,cub,v=1))
+@
+
+<<chisimu3refa,echo=FALSE,cache=TRUE>>=
+set.seed(11288)
+k <- 10000  # **
+n <- 100
+chivals3 <- matrix(nrow = k, ncol = 5) 
+colnames(chivals3) <- c("i","nf1EMPKC","nf2EMPKC","load1","load2")
+ for (i in 1:k){
+  set.seed(25932+i)
+  x <- chicreate3data(n,noise=1.7)
+  chivals3[i,] <- c(i,fa(x,fac=3))
+}
+@
+
+<<echo=FALSE>>=
+chis1eq3 <- rbind(apply(chivals3,2,eqv,v=3),
+              apply(chivals3,2,clb,v=3),
+              apply(chivals3,2,cub,v=3))[,2:3]
+@
+
+<<chiloadright3,echo=FALSE>>=
+chirloads3 <- rbind(apply(chivals3[,4:5],2,mean), #rights
+  apply(chivals3[,4:5],2,clb,v=1),
+  apply(chivals3[,4:5],2,cub,v=1))
+@
+
+
+<<chisimu4refa,echo=FALSE,cache=TRUE>>=
+set.seed(277)
+k <- 10000  # **
+n <- 100
+chivals4 <- matrix(nrow=k,ncol=5)
+colnames(chivals4) <- c("i","nf1EMPKC","nf2EMPKC","load1","load2")
+ for (i in 1:k){
+  set.seed(23532+i)
+  x <- chicreate4data(n,noise=1.5)
+  chivals4[i,] <- c(i,fa(x,fac=4))
+}
+@
+
+<<echo=FALSE>>=
+chis1eq4 <- rbind(apply(chivals4,2,eqv,v=4),
+              apply(chivals4,2,clb,v=4),
+              apply(chivals4,2,cub,v=4))[,2:3]
+@
+
+<<chiloadright4,echo=FALSE>>=
+chirloads4 <- rbind(apply(chivals4[,4:5],2,mean), #rights
+  apply(chivals4[,4:5],2,clb,v=1),
+  apply(chivals4[,4:5],2,cub,v=1))
+@
+
+<<echo=FALSE>>=
+facs <- cbind(chis1eq0,chis1eq1,chis1eq2,chis1eq3,chis1eq4)
+loads <- cbind(chirloads2,chirloads3,chirloads4)
+@
+
+%code for uniform above
+
+\begin{table}[!ht]\caption{Results using $\chi_1^2$ distributions for exploratory factor analyses with the data created from different numbers of latent variables. There were 10,000 replications.} \label{tab:efares}
+\small
+\begin{tabular}{lll c c c c c}
+&&& \multicolumn{5}{c}{Number of True Factors} \\ 
+\phantom{a} &&& 0 & 1 & 2 & 3 & 4 \\
+\cline{4-8}
+&&&&&&& \\
+\multicolumn{4}{l}{Finding the correct number of factors} &&&& \\
+&\multirow{2}{*}{Pearson} & Proportion 
+  & \Sexpr{p3(facs[1,1])} & \Sexpr{p3(facs[1,3])} & \Sexpr{p3(facs[1,5])} & \Sexpr{p3(facs[1,7])} & \Sexpr{p3(facs[1,9])} \\
+&& 95\% CI & (\Sexpr{p3(facs[2,1])}, \Sexpr{p3(facs[3,1])}) 
+& (\Sexpr{p3(facs[2,3])}, \Sexpr{p3(facs[3,3])})
+& (\Sexpr{p3(facs[2,5])}, \Sexpr{p3(facs[3,5])})
+& (\Sexpr{p3(facs[2,7])}, \Sexpr{p3(facs[3,7])})
+& (\Sexpr{p3(facs[2,9])}, \Sexpr{p3(facs[3,9])}) \\
+&\multirow{2}{*}{normrank} & Proportion 
+  & \Sexpr{p3(facs[1,2])} & \Sexpr{p3(facs[1,4])} & \Sexpr{p3(facs[1,6])} & \Sexpr{p3(facs[1,8])} & \Sexpr{p3(facs[1,10])} \\
+&& 95\% CI & (\Sexpr{p3(facs[2,2])}, \Sexpr{p3(facs[3,2])}) 
+          & (\Sexpr{p3(facs[2,4])}, \Sexpr{p3(facs[3,4])})
+          & (\Sexpr{p3(facs[2,6])}, \Sexpr{p3(facs[3,6])})
+          & (\Sexpr{p3(facs[2,8])}, \Sexpr{p3(facs[3,8])})
+          & (\Sexpr{p3(facs[2,10])}, \Sexpr{p3(facs[3,10])}) \\
+\hline
+
+&&&&&&& \\
+\multicolumn{4}{l}{Finding the correct loadings}&&&& \\
+&\multirow{2}{*}{Pearson} & Proportion 
+  & && \Sexpr{p3(loads[1,1])} & \Sexpr{p3(loads[1,3])} & \Sexpr{p3(loads[1,5])}  \\
+&& 95\% CI & && (\Sexpr{p3(loads[2,1])}, \Sexpr{p3(loads[3,1])}) 
+& (\Sexpr{p3(loads[2,3])}, \Sexpr{p3(loads[3,3])})
+& (\Sexpr{p3(loads[2,5])}, \Sexpr{p3(loads[3,5])}) \\
+&\multirow{2}{*}{normrank} & Proportion 
+  & &&\Sexpr{p3(loads[1,2])} & \Sexpr{p3(loads[1,4])} & \Sexpr{p3(loads[1,6])} \\
+&& 95\% CI &&& (\Sexpr{p3(loads[2,2])}, \Sexpr{p3(loads[3,2])}) 
+          & (\Sexpr{p3(loads[2,4])}, \Sexpr{p3(loads[3,4])})
+          & (\Sexpr{p3(loads[2,6])}, \Sexpr{p3(loads[3,6])})
+           \\
+\hline
+\end{tabular}
+\end{table}
+
+
+Figures~\ref{fig:numfactors} and \ref{fig:loadingsright} show that when the data are all produced by non-contaminated normal distributions (mixtures of 0 and 1), Pearson's and the normrank correlation perform similarly for both correctly identifying the number of factors and identifying the correct pattern of loadings. They perform similarly until the distribution has less than about 50\% drawn from the one with the larger standard deviation. This is also where the kurtosis becomes noticeable larger (Figure 3). For these distributions the normrank procedure was more accurate both for identifying the correct number of factors and for identifying the correct pattern of factor loadings. 
+
+Table~\ref{tab:efares} shows the results when the data are distributed $\chi_1^2$. When there is more than one factor used to create the data, the normrank correlation is more accurate than Pearson's correlation both for identifying the number of factors and the factor loading pattern.
+
+
+There are many different parameters that could be used to construct data for EFA and different ways to assess the accuracy of the results. The results presented here are just to illustrate the use of the two correlation procedures. For these, and consistent with the correlation simulation, when the data derive from normal distributions the Pearson's and the normrank correlation perform similarly, but for non-normal distributions, both those with less than normal kurtosis (the uniform distributions) and those with greater than normal kurtosis (the contaminated normal distributions), the normrank performed better. Given Micceri's (1989) finding that most of the distributions he analyzed in psychology and education were not similar to the normal distribution, and most of these had greater than normal kurtosis, the recommendation here is that the normrank correlation should be preferred over Pearson's correlation when conducting EFA for many psychology and education data sets.
+
+
+\afterpage{\clearpage}
+\section{Simulation 4: Structural Equation Modeling (SEM)}
+SEM can take numerous forms. It allows the researcher to hypothesize relationships among latent variables. However, it is a complex analysis that should be used cautiously. 
+\begin{quote}
+When we come to models for relationships between latent variables we have reached a point where so much has to be assumed that one might justly conclude that the limits of scientific usefulness have been reached, if not exceeded.
+\\ \phantom{d} \hfill \citet[p.~228]{BartholomewEA2011}
+\end{quote}
+
+A good applied introduction on SEM using \textsf{R} is \citet{Beaujean2014}, with more coverage in \citet{LoehlinBeaujean2017}. The \textbf{lavaan} manual \citet{lavaan}, one of the main \textsf{R} SEM packages, is a good resource. Here only a single example is shown in order to show how the normrank correlation compares with Pearson's correlation using three distributions (uniform, normal, contaminated normal) for a relatively simple SEM model. A single situation is used to explore if the findings are consistent with the earlier simulations. There are numerous variations in SEM models that could be explored further. As with the other simulations, within each data creation scenario all the random variables will have the same distributions: uniform (range 0 to 1), normal ($\mu=0$, $\sigma = 1$), and contaminated normal (85\% drawn from a normal with $\mu = 0$ and $\sigma = 1$ and 15\% drawn from a normal with $\mu = 0$ and $\sigma = 3$).
+
+The data will be created from the model depicted in Figure~\ref{fig:semdatamodel}. There are three latent variables, $lv_1 - lv_3$, each influencing three observed variables, labeled $o_1 - o_9$. $lv_1$ influences $lv_2$, and $lv_2$ influences $lv_3$. For half of the simulations $lv_1$ also influences $lv_3$. The statistical models compare the data creation models with and without this effect and evaluated for whether this effect is detected at $p < .05$. Given the nature of SEM modeling, sometimes models fail to converge. Often alternative estimation procedures and different control settings can be used to achieve convergence. Here the BFGS (Broyden-Fletcher-Goldfarb-Shanno) algorithm is used, but some errors persisted and are treated as missing. Only \Sexpr{sprintf("%2.2f",100*23/20000)}\% of the 20,000 replications failed to produce a result.
+
+\begin{figure}[ht!] \caption{Causal model used to create the data for Structural Equation Modeling (SEM) simulation. The effect corresponding with the arrow surrounded by the dashed ellipse is included for half the samples.} \label{fig:semdatamodel}
+\centering
+\begin{tikzpicture}[scale=.8]
+\node[rectangle,draw] (o1) at (-4,-2) {$o_1$};
+\node[rectangle,draw] (o2) at (-3,-2) {$o_2$};
+\node[rectangle,draw] (o3) at (-2,-2) {$o_3$};
+\node[rectangle,draw] (o4) at (-1,4) {$o_4$};
+\node[rectangle,draw] (o5) at (0,4) {$o_5$};
+\node[rectangle,draw] (o6) at (1,4) {$o_6$};
+\node[rectangle,draw] (o7) at (2,-2) {$o_7$};
+\node[rectangle,draw] (o8) at (3,-2) {$o_8$};
+\node[rectangle,draw] (o9) at (4,-2) {$o_9$};
+
+\node[ellipse,draw] (lv1) at (-3,0) {$lv_1$};
+\node[ellipse,draw] (lv2) at (0,2) {$lv_2$};
+\node[ellipse,draw] (lv3) at (3,0) {$lv_3$};
+\draw[->, shorten >= .25cm, shorten <= .3cm] (lv1) -- (lv3);
+\draw[->, shorten >= .05cm] (lv1) -- (lv2);
+\draw[->, shorten >= .05cm] (lv2) -- (lv3);
+
+\draw[->, shorten >= .05cm] (lv1) -- (o1);
+\draw[->, shorten >= .05cm] (lv1) -- (o2);
+\draw[->, shorten >= .05cm] (lv1) -- (o3);
+\draw[->, shorten >= .05cm] (lv2) -- (o4);
+\draw[->, shorten >= .05cm] (lv2) -- (o5);
+\draw[->, shorten >= .05cm] (lv2) -- (o6);
+\draw[->, shorten >= .05cm] (lv3) -- (o7);
+\draw[->, shorten >= .05cm] (lv3) -- (o8);
+\draw[->, shorten >= .05cm] (lv3) -- (o9);
+
+
+\draw[dashed] (0,0) ellipse (2.3cm and .5cm);
+\end{tikzpicture}
+\end{figure}
+
+
+
+<<makesemdata,echo=FALSE>>=
+makesemu <- function(n=200,noise=1,effect=TRUE){
+ lv1 <- rchisq(n,df=1)
+   o1 <- lv1 + noise*rchisq(n,df=1)
+   o2 <- lv1 + noise*rchisq(n,df=1)
+   o3 <- lv1 + noise*rchisq(n,df=1)
+ lv2 <- scale(lv1 + noise*rchisq(n,df=1))
+   o4 <- lv2 + noise*rchisq(n,df=1)
+   o5 <- lv2 + noise*rchisq(n,df=1)
+   o6 <- lv2 + noise*rchisq(n,df=1)
+ ifelse(effect,
+          lv3 <- scale(lv1/2 + lv2/2 + noise*rchisq(n,df=1)), 
+          lv3 <- scale(lv2 + noise*rchisq(n,df=1)))
+   o7 <- lv3 + noise*rchisq(n,df=1)
+   o8 <- lv3 + noise*rchisq(n,df=1)
+   o9 <- lv3 + noise*rchisq(n,df=1)
+ x <- cbind(o1,o2,o3,o4,o5,o6,o7,o8,o9)
+ colnames(x) <- paste0("o",1:9)
+ return(x)
+}
+makesemn <- function(n=200,noise=1,effect=TRUE){
+ lv1 <- rnorm(n)
+   o1 <- lv1 + noise*rnorm(n)
+   o2 <- lv1 + noise*rnorm(n)
+   o3 <- lv1 + noise*rnorm(n)
+ lv2 <- scale(lv1 + noise*rnorm(n))
+   o4 <- lv2 + noise*rnorm(n)
+   o5 <- lv2 + noise*rnorm(n)
+   o6 <- lv2 + noise*rnorm(n)
+ ifelse(effect,
+          lv3 <- scale(lv1/2 + lv2/2 + noise*rnorm(n)), 
+          lv3 <- scale(lv2 + noise*rnorm(n)))
+   o7 <- lv3 + noise*rnorm(n)
+   o8 <- lv3 + noise*rnorm(n)
+   o9 <- lv3 + noise*rnorm(n)
+ x <- cbind(o1,o2,o3,o4,o5,o6,o7,o8,o9)
+ colnames(x) <- paste0("o",1:9)
+ return(x)
+}
+
+makesemcn <- function(n=200,noise=1,effect=TRUE){
+ lv1 <- rcnorm(n)
+   o1 <- lv1 + noise*rcnorm(n,mix=.85)
+   o2 <- lv1 + noise*rcnorm(n,mix=.85)
+   o3 <- lv1 + noise*rcnorm(n,mix=.85)
+ lv2 <- scale(lv1 + noise*rcnorm(n,mix=.85))
+   o4 <- lv2 + noise*rcnorm(n,mix=.85)
+   o5 <- lv2 + noise*rcnorm(n,mix=.85)
+   o6 <- lv2 + noise*rcnorm(n,mix=.85)
+ ifelse(effect,
+          lv3 <- scale(lv1/2 + lv2/2 + noise*rcnorm(n,mix=.85)), 
+          lv3 <- scale(lv2 + noise*rcnorm(n,mix=.85)))
+   o7 <- lv3 + noise*rcnorm(n,mix=.85)
+   o8 <- lv3 + noise*rcnorm(n,mix=.85)
+   o9 <- lv3 + noise*rcnorm(n,mix=.85)
+ x <- cbind(o1,o2,o3,o4,o5,o6,o7,o8,o9)
+ colnames(x) <- paste0("o",1:9)
+ return(x)
+}
+
+@
+
+<<modelssem,echo=FALSE>>=
+# These defined outside of loop
+model1 <- '
+  # measurement model
+    lv1 =~ o1 + o2 + o3
+    lv2 =~ o4 + o5 + o6 
+    lv3 =~ o7 + o8 + o9
+  # regressions
+    lv2 ~ lv1
+    lv3 ~ lv1 + lv2
+  # residual correlation
+  '
+
+model2 <- '
+  # measurement model
+    lv1 =~ o1 + o2 + o3
+    lv2 =~ o4 + o5 + o6 
+    lv3 =~ o7 + o8 + o9
+  # regressions
+    lv2 ~ lv1
+    lv3 ~ lv2
+  # residual correlation
+  '
+@
+
+<<semf,echo=FALSE>>=
+semf <- function(model,corr,n){
+  fit <- tryCatch(sem(model=model,sample.cov=corr,sample.nobs=n,
+               optim.method="BFGS",optim.force.converged=TRUE),
+               error = function(e){})
+  return(fit)       
+}
+av <- function(fit1,fit2){
+  x <- tryCatch(anova(fit1,fit2)$Pr[2],error = function(e){})
+  if(is.null(x)) x <- NA  
+  return(x)
+}
+@
+
+<<echo=FALSE>>=
+options(warn = -1)
+@
+
+<<semsimuET,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000  # **
+set.seed(8477)
+semvalsET <- matrix(ncol=7,nrow=k)
+semvalsET[,1] <- 1:k
+for (i in 1:k){
+  egchif <- makesemu()
+  egnorm <- makesemn()
+  egcnorm <- makesemcn()
+  cmu1 <- cor(egchif)
+  cmu2 <- ncorrmat(egchif) 
+  cmn1 <- cor(egnorm)
+  cmn2 <- ncorrmat(egnorm) 
+  cmcn1 <- cor(egcnorm)
+  cmcn2 <- ncorrmat(egcnorm) 
+  
+  fitup1 <- semf(model1,cmu1,nrow(egchif))
+  fitup2 <- semf(model2,cmu1,nrow(egchif))
+  semvalsET[i,2] <- av(fitup1,fitup2)
+
+  fitua1 <- semf(model1,cmu2,nrow(egchif))
+  fitua2 <- semf(model2,cmu2,nrow(egchif))
+  semvalsET[i,3] <- av(fitua1,fitua2) 
+
+  fitnp1 <- semf(model1,cmn1,nrow(egnorm))
+  fitnp2 <- semf(model2,cmn1,nrow(egnorm))
+  semvalsET[i,4] <- av(fitnp1,fitnp2)
+  
+  fitna1 <- semf(model1,cmn2,nrow(egnorm))
+  fitna2 <- semf(model2,cmn2,nrow(egnorm))
+  semvalsET[i,5] <- av(fitna1,fitna2)
+
+  fitcnp1 <- semf(model1,cmcn1,nrow(egcnorm))
+  fitcnp2 <- semf(model2,cmcn1,nrow(egcnorm))
+  semvalsET[i,6] <- av(fitcnp1,fitcnp2)
+  
+  fitcna1 <- semf(model1,cmcn2,nrow(egcnorm))
+  fitcna2 <- semf(model2,cmcn2,nrow(egcnorm))
+  semvalsET[i,7] <- av(fitcna1,fitcna2)
+ }
+@
+
+<<echo=FALSE>>=
+sumna <- function(x) sum(is.na(x))
+etmeans <- colMeans(semvalsET,na.rm=TRUE)
+
+#apply(semvalsET,2,sumna)
+@
+
+
+<<semsimuEF,cache=TRUE,echo=FALSE,warning=FALSE>>=
+k <- 10000 # **
+set.seed(8477)
+
+semvalsEF <- matrix(ncol=7,nrow=k)
+semvalsEF[,1] <- 1:k
+for (i in 1:k){
+  egchif <- makesemu(effect=FALSE)
+  egnorm <- makesemn(effect=FALSE)
+  egcnorm <- makesemcn(effect=FALSE)
+  cmu1 <- cor(egchif)
+  cmu2 <- ncorrmat(egchif) 
+  cmn1 <- cor(egnorm)
+  cmn2 <- ncorrmat(egnorm) 
+  cmcn1 <- cor(egcnorm)
+  cmcn2 <- ncorrmat(egcnorm) 
+
+  fitup1 <- semf(model1,cmu1,nrow(egchif))
+  fitup2 <- semf(model2,cmu1,nrow(egchif))
+  semvalsEF[i,2] <- av(fitup1,fitup2)
+
+  fitua1 <- semf(model1,cmu2,nrow(egchif))
+  fitua2 <- semf(model2,cmu2,nrow(egchif))
+  semvalsEF[i,3] <- av(fitua1,fitua2) 
+
+  fitnp1 <- semf(model1,cmn1,nrow(egnorm))
+  fitnp2 <- semf(model2,cmn1,nrow(egnorm))
+  semvalsEF[i,4] <- av(fitnp1,fitnp2)
+  
+  fitna1 <- semf(model1,cmn2,nrow(egnorm))
+  fitna2 <- semf(model2,cmn2,nrow(egnorm))
+  semvalsEF[i,5] <- av(fitna1,fitna2)
+
+  fitcnp1 <- semf(model1,cmcn1,nrow(egcnorm))
+  fitcnp2 <- semf(model2,cmcn1,nrow(egcnorm))
+  semvalsEF[i,6] <- av(fitcnp1,fitcnp2)
+  
+  fitcna1 <- semf(model1,cmcn2,nrow(egcnorm))
+  fitcna2 <- semf(model2,cmcn2,nrow(egcnorm))
+  semvalsEF[i,7] <- av(fitcna1,fitcna2)
+}
+@
+
+<<echo=FALSE>>=
+options(warn=0)
+@
+
+<<echo=FALSE,warning=FALSE>>=
+efmeans <- colMeans(semvalsEF,na.rm=TRUE)
+nas <- apply(semvalsEF,2,sumna)
+lb <- function(x) binconf(sum(x,na.rm=TRUE),sum(!is.na(x)),method="exact")[2]
+ub <- function(x) binconf(sum(x,na.rm=TRUE),sum(!is.na(x)),method="exact")[3]
+
+semvalsET <- semvalsET[complete.cases(semvalsET),]
+semvalsEF <- semvalsEF[complete.cases(semvalsEF),]
+eflb <- apply(semvalsEF,2,lb)
+etlb <- apply(semvalsET,2,lb)
+efub <- apply(semvalsEF,2,ub)
+etub <- apply(semvalsET,2,ub)
+@
+
+
+\begin{table}[!ht]
+\caption{Proportion of replications rejecting the hypothesis that there is a direct effect from $lv_1$ to $lv_3$ (the effect in the dashed ellipse in Figure \ref{fig:semdatamodel}). For half of the simulations these are incorrect decisions (top half of the table) and should be near the $\alpha = .05$ level. For half they are the correct decisions (the bottom half). There were 10,000 replications for each condition. } \label{tab:semresults}
+\centering
+\begin{tabular}{l l c c c}
+&& uniform & Normal & Contaminated\\
+\hline
+\multicolumn{3}{l}{Null hypothesis true ($lv_1 \rightarrow lv_3$ not present)} && \\
+\cline{1-3}
+\multirow{2}{*}{Pearson's} & Proportion & \Sexpr{p3(etmeans[2])} & \Sexpr{p3(etmeans[4])} & \Sexpr{p3(etmeans[6])} \\
+& 95\% CI & (\Sexpr{p3(etlb)[2]}, \Sexpr{p3(etub)[2]}) &
+(\Sexpr{p3(etlb)[4]}, \Sexpr{p3(etub)[4]}) &
+(\Sexpr{p3(etlb)[6]}, \Sexpr{p3(etub)[6]}) \\
+\multirow{2}{*}{normrank} & Proportion & \Sexpr{p3(etmeans[3])} & \Sexpr{p3(etmeans[5])} & \Sexpr{p3(etmeans[7])} \\
+& 95\% CI & (\Sexpr{p3(etlb)[3]}, \Sexpr{p3(etub)[3]}) &
+(\Sexpr{p3(etlb)[5]}, \Sexpr{p3(etub)[5]}) &
+(\Sexpr{p3(etlb)[7]}, \Sexpr{p3(etub)[7]}) \\
+\hline
+\multicolumn{3}{l}{Null hypothesis false ($lv_1 \rightarrow lv_3$ present)} &&\\
+\cline{1-3}
+\multirow{2}{*}{Pearson's} & Proportion & \Sexpr{p3(efmeans[2])} & \Sexpr{p3(efmeans[4])} & \Sexpr{p3(efmeans[6])} \\
+&95\% CI & (\Sexpr{p3(eflb)[2]}, \Sexpr{p3(efub)[2]}) &
+(\Sexpr{p3(eflb)[4]}, \Sexpr{p3(efub)[4]}) &
+(\Sexpr{p3(eflb)[6]}, \Sexpr{p3(efub)[6]}) \\
+\multirow{2}{*}{normrank} & Proportion & \Sexpr{p3(efmeans[3])} & \Sexpr{p3(efmeans[5])} & \Sexpr{p3(efmeans[7])} \\
+& 95\% CI & (\Sexpr{p3(eflb)[3]}, \Sexpr{p3(efub)[3]}) &
+(\Sexpr{p3(eflb)[5]}, \Sexpr{p3(efub)[5]}) &
+(\Sexpr{p3(eflb)[7]}, \Sexpr{p3(efub)[7]}) \\
+
+\hline
+\end{tabular}
+\end{table}
+
+The primary SEM results can be summarized as: Pearson's and the normrank produce similar findings when the distributions are uniform or normal, but the normrank approach performs better both in terms for not rejecting the true null (by a couple of percent) and correctly rejecting a false null hypothesis (by about seven percent) when the distributions have high kurtosis. Large differences were found for the different distributions for incorrectly rejecting a true null (i.e., the Type 1 error proportions). In the uniform conditions the true null was incorrectly rejected less than the nominal level of .05, while in the normal conditions it was rejected slightly more than the nominal level, and in the contaminated normal conditions it was rejected much more. These differences highlight the importance of considering how the distributions underlying the data (real and simulate) can affect statistical models. 
+
+
+\section{Summary}
+Pearson's product moment correlation is one of the most used statistics in all of science. It is highly influenced by extreme values which makes this procedure less reliable for some distributions. Spearman's rank correlation is a popular alternative when there are extreme outliers and the analyst wants to limit their impact. The normrank correlation, using what is sometimes called the rank based inverse normal transformation, results in data more closely resembling a normal distribution. 
+
+Four simulations were conducted. The first was to show which variation of the normrank transformation to use. For continuous distributions $\delta = .7$ appeared to perform well. This was used in the remaining simulations. The second simulation examined how well Pearson's, Spearman's, and the normrank correlation performed detecting an association. Spearman's was never the best of these three. The recommendation is not to use it. Pearson's was more powerful than the normrank correlation with the normally distributed data, but the difference was fairly small. The normrank correlation was more powerful than Pearson's correlation when the distribution had sub- and super-normal kurtosis. Because \citet{Micceri1989} found most correlations in psychology and education had greater than normal kurtosis, the normrank correlation is likely to be more powerful and should be considered. However, it is important to stress that Pearson's approach was better for normally distributed data, as has been shown in other contexts \citep[e.g.,][]{BeasleyEA2009}, using the normrank transformation will not always produce more powerful statistical tests. A further reservation for all procedures involving ranking is that information about the original variable metric is lost. 
+
+The final two simulations compared the use of Pearson's correlation with the normrank correlation in factor analysis and structural equation modeling. The results were similar to the second simulation. When the data are drawn for normal distributions, the procedures perform similarly, but when they are drawn from non-normal distributions, with kurtosis much different from the normal distribution, the normrank performed better. Overall, 
+
+It is concluded, therefore that:
+\begin{enumerate}[noitemsep]
+\item Spearman's procedure should not be used.
+\item The normrank should be considered unless the researcher has strong reasons to believe their data are drawn for near-normal distributions, but researchers may also wish to consider numeric transformations.
+\end{enumerate}
+
+It is important to stress that this paper only addresses one alternative to Pearson's correlation on untransformed variables. The paper shows that the normrank transformation can improve the subsequent statistics, but there are other approaches. First, if there is a particular substantive model that is consistent with a particular transformation \citep[e.g., count data, which according to][may profit from the \emph{ln} transformation]{MostellerTukey1977} this should be considered. Second, the Box-Cox transformation \citep{BoxCox1964} usually makes data more similar to the normal distribution and is often used. If you have a particular model, whether linear or otherwise, about the relationship between the variables no transformation involving ranking should be used and the applicable model should be evaluated. If the worry is about the impact of extreme values more robust loss functions could be used \citep[e.g.,][]{HoaglinEA2000} and if the worry is about not meeting the distributional assumptions bootstrapping could be used \citep[e.g.,][]{EfronTibshirani1993,WrightEA2011boot}. In short, there are many alternatives to conducting Pearson's correlation on untransformed variables, and in some situations the normrank transformation data should be considered.  
+
+
+In line with the goals of this journal to have access to as much evidence as plausible \citep[see][]{Wright2020Open}, the \textsf{R} code to reproduce the simulations is in Appendix 1. Further, the final submitted document, in full, is on the author's github page (\url{https://github.com/dbrookswr/normrank/blob/main/README.md}). It includes \LaTeX{} and \textsf{R}, both freely available, knitted together using \texttt{knitr} \citep{knitr}.
+
+\bibliography{../AllRefs}
+
+
+\section*{Appendix 1: Code for Simulations}
+The final submitted document is available as a reproducible \texttt{knitr} document \citep{knitr} at the author's github page (**). The code for the simulations is shown in the Appendix.
+
+\subsection*{Simulation 1}
+Below is the code for when $n=50$ to find values for $\delta$ that produce variables that are distributed similarly to the normal distribution. The simulations for $n = 100$ and $n = 200$ are identical accept that the sample size is changed.
+<<simudeltan50,eval=FALSE,echo=TRUE>>=
+@
+
+\subsection*{Simulation 2}
+\noindent  These are the functions used to make the contaminated normal distributions and calculate the different correlations:
+<<corr3fun,eval=FALSE,echo=TRUE>>=
+@
+
+\noindent  This is the code used to create the data for the correlation simulation with $H_0$ true and $n = 40$. The $n$ is changed for the other two sample sizes. 
+<<corsimu1_40,eval=FALSE,echo=TRUE>>=
+@
+
+\subsection*{Simulation 3}
+The data were created for the EFA with the following functions, one each depending on the number of latent variables.
+<<createdataefa,echo=TRUE,eval=FALSE>>=
+@
+
+
+\noindent The simulation for the situation with no latent variables was conducted with the following. The other simulations used the other functions, from above, to create the data.
+
+<<simu0refa,eval=FALSE,echo=TRUE>>=
+@
+
+\subsection*{Simulation 4}
+
+\noindent The following creates the SEM data.
+<<makesemdata,echo=TRUE,eval=FALSE>>=
+@
+
+\noindent These are the two models compared:
+<<modelssem,echo=TRUE,eval=FALSE>>=
+@
+
+\noindent This shows the fitting procedure for the models:
+<<semf,echo=TRUE,eval=FALSE>>=
+@
+
+
+\noindent This is the simulation when the effect is present:
+
+<<semsimuET,echo=TRUE,eval=FALSE>>=
+@
+
+\section{Appendix 2: Examples using normrank in \textsf{R}}
+
+\subsection{From Simulation 2: Finding the normrank correlation}
+The proposed alternative is implemented in three steps: 1) decide how to treat missing values, 2) transform the variables, and 3) run Pearson's correlation. Particularly for procedures like structural equation modeling that use correlation matrices (see below), imputing missing values can be desirable, but it should be done cautiously \citep{Rubin1987}. 
+
+\begin{figure}[ht!]
+\caption{Scatter plots for height with college GPA and ACT scores for male students in a regression class.} \label{fig:regclass}
+<<cereal,fig.align="center",fig.height=3.3*1.1,out.height="3.3in",out.width="6.0in",fig.width=6.0*1.1,echo=FALSE,message=FALSE,warning=FALSE>>=
+library(regclass)
+data(EDUCATION)
+attach(EDUCATION)
+par(mfrow=c(1,2))
+plot(jitter(Height,amount=.3),CollegeGPA,las=1,cex = .6,xlab="Height in inches (jittered)",cex.lab=1.1,cex.axis=1.1,
+      ylab="College GPA")#,xlim=c(-.5,16.5),ylim=c(-.5,15.5))
+mtext("Correlation negative",3,line=.5,cex=1.1)
+plot(jitter(Height,amount=.3),jitter(ACT),las=1,cex = .6,xlab="Height in inches (jittered)",,cex.lab=1.1,cex.axis=1.1,
+      ylab="ACT (jittered)" ) #,xlim=c(-.5,16.5),ylim=c(-.5,15.5))
+mtext("Correlation near zero",3,line=.5,cex=1.1)
+@
+\end{figure}
+
+The example dataset used is \texttt{EDUCATION} \citep{regclass}. It is a data set from a regression course at University of Tennessee, and just the male student data are used here (there are no missing data). The interest is with the association between height and the academic measures: College GPA and ACT scores. Figure~\ref{fig:regclass} shows the scatter plots for these associations. Once the data are loaded, the transformations can be done in \textsf{R} with:
+<<>>=
+newHeight <- qnorm(rank(Height)/(length(Height)+1))
+newCGPA <- qnorm((rank(CollegeGPA)-.7)/(length(CollegeGPA) - 2*.7 + 1))
+newACT <- qnorm((rank(ACT)-.7)/(length(ACT) - 2*.7 + 1))
+@
+\noindent If you plan to use this transformation often or use it in other functions it can be useful to write a function for it.
+<<>>=
+normrank <- function(x,delta)
+  qnorm((rank(x) - delta)/(length(x) - 2 * delta + 1))
+@
+
+\noindent The final step is conducting the correlation. This can be done with the \textsf{R} functions \texttt{cor} or \texttt{cor.test}. There is a negative association between height and college GPA, but the association between height and ACT scores is near zero. The \texttt{cor.test} function provides more information than \texttt{cor}, including $p$-values and confidence intervals.
+
+<<>>=
+cor.test(newHeight,newCGPA)
+cor.test(newHeight,newACT)
+@
+
+
+\noindent These steps can be combined:
+<<>>=
+ncorr <- function(x,y,delta=.7){
+  if (any(is.na(cbind(x,y)))) 
+       warning("Some missing values. NAs treated as maxima.")
+  return(cor(normrank(x,delta=delta),normrank(y,delta=delta)))
+}
+@
+
+\noindent Note that by default the \textsf{R} \texttt{rank} function treats missing values as maxima, even higher than $\infty$:  
+<<>>=
+rank(c(1,NA,Inf,2))
+@
+\noindent This could lead to unexpected results so it is important to address missing values if this is not appropriate. You can set \texttt{na.last = "keep"} in the \texttt{rank} functions and \texttt{use="pairwise.complete.obs"} in the \texttt{cor} function if you want to exclude missing data pairwise.
+
+<<echo=FALSE,eval=FALSE>>=
+ncorrmat <- function(x,delta=.7){
+  if (any(is.na(x))) 
+       warning("Some missing values. NAs treated as maxima.")
+  return(cor(apply(x,2,normrank,delta=delta))) }
+@
+
+<<echo=FALSE>>=
+rcnorm <- function(n,mix=1,sigma=3)
+  c(rnorm(round(n*mix)),rnorm(round(n*(1-mix)),sd=sigma))
+@
+
+
+<<kurtcheck3,cache=TRUE,echo=FALSE>>=
+x1 <- rcnorm(10000000,.85,3)
+x2 <- rcnorm(10000000,.85,10)
+k1 <- e1071::kurtosis(x1)
+k2 <- e1071::kurtosis(x2)
+@
+
+\subsection{EFA in \textsf{R} with the normrank correlation}
+Consider the fictional data \citet{Field2018} created for an \textsf{SPSS} anxiety scale available at \url{www.discoveringstatistics.com/statistics-hell-p/veritas-advanced-topics/factor-analysis-and-pca/}. This is an \textsf{SPSS} file so needs to be read into \textsf{R} using one of the packages that does this, for example \textbf{foreign} \citep{foreign} or \textbf{haven} \citep{haven}. Once the data are read they are called \texttt{spssanx}. Only the first 23 columns are read in; these are the scale's questions. It is convenient to have a function designed to create correlation matrices using the normrank correlation, calling that function (the \texttt{normrank} function shown earlier).
+
+<<message=FALSE,warning=FALSE,echo=FALSE>>=
+library(foreign)
+spssanx <- read.spss("C:\\Users\\wrighd12\\Documents\\normrank\\SAQ.sav",
+                    to.data.frame=TRUE)[,1:23]
+@
+
+<<>>=
+ncorrmat <- function(x){
+  if (any(is.na(x))) 
+       warning("Some missing values. NAs treated as maxima.")
+  return(cor(apply(x,2,normrank,delta=.7)))
+}
+@
+
+\noindent Applying this to \texttt{spssanx} results in an normrank correlation matrix:
+<<>>=
+altcor <- ncorrmat(spssanx)
+@
+
+\noindent That can be used to create a scree plot, using the principle component functions in \textsf{R} (e.g., \texttt{prcomp}, \texttt{princomp}):
+<<eval=FALSE>>=
+screeplot(princomp(covmat=altcor))
+@
+\noindent or directly calling \texttt{eigen} or \texttt{svd} with the correlation matrix:
+<<eval=FALSE>>=
+eigen(altcor)$values
+svd(altcor)$d
+@
+\noindent The correlation matrix can also be placed within the \texttt{factanal} function for factor analysis. Suppose there are three latent variables. The code would be:
+<<eval=FALSE>>=
+factanal(covmat=altcor,factors=3,n.obs=nrow(spssanx))
+@
+
+\subsection{Using the normrank with SEM in \textsf{R}}
+As with EFA, a correlation matrix can be created by transforming all the variables and creating a matrix, and then reading this matrix into the multivariate procedure. The functions \texttt{cfa}, \texttt{sem}, \texttt{sam}, and \texttt{growth}, are all wrappers for the function \texttt{lavaan}. They set up various parameters consistent with those used by most using confirmatory factor analysis, structural equation modeling, structural after measurement, and latent growth modeling, respectively. Consider the model for the simulation:
+
+
+<<>>=
+model1 <- ' 
+    lv1 =~ o1 + o2 + o3
+    lv2 =~ o4 + o5 + o6 
+    lv3 =~ o7 + o8 + o9
+    lv2 ~ lv1
+    lv3 ~ lv1 + lv2
+  '
+@
+
+\noindent The \texttt{sem} function can be used to estimate this model with the normrank correlation matrix by using the \texttt{ncorrmat} function described earlier. The \texttt{sem} function has a slot \texttt{sample.cov}. The correlation matrix can be placed in this. In addition, the function needs to be told the number of people that the correlation is based on. Suppose the data are in a standard rectangular data matrix called \texttt{semegdata}. The sample size is the number of rows: \texttt{nrow(semegdata)}.
+
+<<eval=FALSE>>=
+sem1 <- sem(model1,
+            sample.cov= ncorrmat(semegdata),
+            sample.nobs=nrow(semegdata))
+summary(sem1)
+@
+
+
+\end{document}
